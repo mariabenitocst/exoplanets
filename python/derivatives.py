@@ -38,6 +38,10 @@ def derivativeTDM_wrt_M(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
     # DM temperature^-3 [1/K^3]
     T_DM3 = np.power((f*_rhoDM*_vDM*(1+3./2.*np.power(vesc/_vD, 2))*
                      conversion_into_w)/(4*_sigma_sb*epsilon), -3./4.)
+    
+    print(_rhoDM)
+    print(T_DM3*3./16.*np.sqrt(8./3./np.pi)*f/_sigma_sb)#/                         
+            #epsilon*_rhoDM*_G/_vD/R)
     # return 
     return (T_DM3*3./16.*np.sqrt(8./3./np.pi)*f/_sigma_sb/
             epsilon*_rhoDM*_G/_vD/R*
