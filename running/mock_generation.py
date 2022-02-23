@@ -121,7 +121,7 @@ def mock_population_all(N, relT, relM, relRobs, relA,
     ages_wn = ages + np.random.normal(loc=0, scale=(relA*ages), size=_N)
     # select only those objects with masses between 14 and 55 Mjup and T > Tmin
     pos  = np.where((mass_wn > 0.015) & (mass_wn < 0.051) & # 16 - 53 Mjup!
-                    (Tobs > Tmin) & (Tobs_wn > Tmin) &
+                    (Tobs_wn > Tmin) & 
                     (robs_wn > 0.1) & (robs_wn < 1.) & 
                     (ages_wn > 1.002) & (ages_wn < 9.998))
     #print("Tmin = ", Tmin, len(pos[0]))

@@ -12,7 +12,7 @@ conversion_into_w       = 0.16021766
 conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]
 # ============================================================================
 
-def derivativeTDM_wrt_M(r, f, params, M, v=None, R=R_jup.value, Rsun=8.178,
+def derivativeTDM_wrt_M(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
                         epsilon=1):
     """
     Return (analytical) derivative of DM temperature wrt mass @ 
@@ -45,7 +45,7 @@ def derivativeTDM_wrt_M(r, f, params, M, v=None, R=R_jup.value, Rsun=8.178,
            )
 
 
-def derivativeTDM_wrt_r(r, f, params, M, v=None, R=R_jup.value, Rsun=8.178,
+def derivativeTDM_wrt_r(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
                         epsilon=1):
     """
     Return (analytical) derivative of DM temperature wrt r @ 
@@ -75,6 +75,21 @@ def derivativeTDM_wrt_r(r, f, params, M, v=None, R=R_jup.value, Rsun=8.178,
                      conversion_into_w)/(4*_sigma_sb*epsilon), 1./4.)
     
     return(0.25*T_DM*(-params[0]/r - (3-params[0])/(params[1] + r)))
+
+def derivativeTintana_wrt_A(M, A, a, b):
+    """
+    Return (analytical) derivative of interinsic temperature wrt age [K/Gyr]
+    (ATMO temperatures are fitted by a/A^b)
+    
+    Input
+    -----
+        M : mass [Msun]
+        A : age [Gyr]
+        a : =f(M) - interpolation function
+        b : =f(M) - interpolation function
+    """
+    return (-a(M)*b(M)*np.power(A, -b(M)-1))
+
 
 def derivativeTint_wrt_A(M, A, points, values, size=7000, h=0.001):
     """
