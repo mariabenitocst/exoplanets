@@ -3,7 +3,7 @@ from astropy.constants import R_jup, M_jup, G, sigma_sb
 from scipy.special import hyp2f1
 from scipy.interpolate import interp1d
 import astropy.units as u
-
+#from derivatives import dderivativeT_wrt_M, dderivativeT_wrt_A, dderivativeT_wrt_r
 
 # Constant parameters & conversions ==========================================  
 _sigma_sb = sigma_sb.value                                                      
@@ -12,6 +12,24 @@ conversion_into_K_vs_kg = 1.60217e-7
 conversion_into_w       = 0.16021766                                            
 conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]                               
 # ============================================================================ 
+
+def delta_temperature_withDM(r, sigma_r, M, sigma_M, A, sigma_A, Tint, 
+                             TDM, a, b, c, f, params, v):
+    """
+    Correction to expected temperature value due to non-linear relation 
+    between temperature and mass, age, galactocentric distance variables.
+    
+    Correction = 0.5*Tr(H_0*C)=0.5*(delta_MM T*sigma_M^2 + 
+                                    delta_AA T*sigma_A^2 + 
+                                    delta_RR T*sigma_R^2) 
+    """
+    Ttot = np.power(TDM**4 + Tint**4, 0.25)
+    # return
+    return 0.5*(dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v)*np.power(sigma_M, 2)
+            + dderivativeT_wrt_A(M, A, Tint, Ttot, a, b)*np.power(sigma_A, 2)
+            + dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot)*np.power(sigma_r, 2)
+            )
+
 
 def vc(Rsun, Rint, parameters):
     data = np.genfromtxt("../data/rc_e2bulge_R08.178_J_corr.dat", unpack=True)

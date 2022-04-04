@@ -143,3 +143,72 @@ def derivativeT_wrt_M(r, M, A, Tint, TDM, points, values, f, params,
             (TDM/Ttot)**3*derivativeTDM_wrt_M(r, f, params, M, v=v, R=R, Rsun=Rsun,
                                               epsilon=epsilon)
            )
+
+def dderivativeTDM_wrt_M(r, f, params, M, v, TDM, dervTDM_M,
+                         R=R_jup.value, Rsun=8.178, epsilon=1):
+    """
+    Return second derivative DM-heated temperature wrt mass [K/Msun^2]
+    """
+    #TODO: Are the formula + conversion units correct? 
+    if v:                                                                          
+        _vD = v                                                                    
+    else:                                                                          
+        _vD    = np.sqrt(3/2.)*vc(Rsun, r, params) # km/s                          
+                                                                                   
+    _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s
+
+    _rhoDM = gNFW_rho(Rsun, r, params) # GeV/cm3
+    
+    conversion = 3.18578e23 #1.6021766e-7*(M_sun.value)
+
+    # return
+    return (-9./16.*_G*f*_rhoDM/(R*_sigma_sb*epsilon) *
+            np.sqrt(8./(3*np.pi))/_vD * np.power(TDM, -4)*dervTDM_M*conversion)
+
+
+def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v, 
+                       R=R_jup.value, Rsun=8.178, epsilon=1):
+    """
+    Return second derivative of temperature wrt mass [K/Msun^2]
+    """
+    dervTDM_M = derivativeTDM_wrt_M(r, f, params, M, v)
+    dervT_M   = ((Tint/Ttot)**3* c(A) + (TDM/Ttot)**3*dervTDM_M) 
+
+    #TODO: may be missing factors (Tint/Ttot) & (TDM/Ttot)!!
+    # return
+    return (-3/Ttot * np.power(dervT_M, 2) + np.power(Ttot, -3)*(
+             3*Tint*Tint*np.power(c(A), 2) + 
+             3*TDM*TDM*np.power(dervTDM_M, 2) +
+             np.power(TDM, 3)*dderivativeTDM_wrt_M(r, f, params, M, v, TDM, dervTDM_M)))
+
+def dderivativeTint_wrt_A(M, A, a, b):
+    """
+    Return second derivative of intrinsic temperature wrt age [K/Gyr^2]
+    """
+    # return
+    return (a(M)*b(M)*(1+b(M))*np.power(A, -b(M)-2))
+
+def dderivativeT_wrt_A(M, A, Tint, Ttot, a, b):
+    """
+    Return second derivative of temperature wrt age [K/Gyr^2]
+    """
+    dervT_A = (Tint/Ttot)**3*derivativeTintana_wrt_A(M, A, a, b)
+    # return
+    return (3*(-1./Ttot+1./Tint)*dervT_A*dervT_A +
+            np.power(Tint/Ttot, 3)*dderivativeTint_wrt_A(M, A, a, b)
+            )
+
+def dderivativeTDM_wrt_r(r, f, params, M, v, TDM):
+    # return
+    return 0.25*(derivativeTDM_wrt_r(r, f, params, M, v)*(-params[0]/r-(3-params[0])/(params[1]+r))
+                 + TDM*(params[0]/np.power(r, 2)+(3-params[0])/np.power(params[1]+r, 2)))
+
+def dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot):
+    """
+    Return second derivative of temperature wrt Galactocenctric distance
+    [K/kpc^2]
+    """
+    # return
+    return np.power(TDM/Ttot, 3)*(-3*(1./Ttot-1./TDM)*derivativeTDM_wrt_r(r, f, params, M, v)
+            + dderivativeTDM_wrt_r(r, f, params, M, v, TDM)
+            )
