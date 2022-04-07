@@ -16,7 +16,7 @@ conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]
 def delta_temperature_withDM(r, sigma_r, M, sigma_M, A, sigma_A, Tint, 
                              TDM, a, b, c, f, params, v):
     """
-    Correction to expected temperature value due to non-linear relation 
+    2nd/3rd-order correction to expected temperature due to non-linear relation 
     between temperature and mass, age, galactocentric distance variables.
     
     Correction = 0.5*Tr(H_0*C)=0.5*(delta_MM T*sigma_M^2 + 

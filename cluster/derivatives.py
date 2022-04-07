@@ -144,42 +144,31 @@ def derivativeT_wrt_M(r, M, A, Tint, TDM, points, values, f, params,
                                               epsilon=epsilon)
            )
 
-def dderivativeTDM_wrt_M(r, f, params, M, v, TDM, dervTDM_M,
-                         R=R_jup.value, Rsun=8.178, epsilon=1):
+# =========================================================================== 
+# Second-order derivative
+# =========================================================================== 
+
+def dderivativeTDM_wrt_M(TDM, dervTDM_M):
     """
     Return second derivative DM-heated temperature wrt mass [K/Msun^2]
     """
-    #TODO: Are the formula + conversion units correct? 
-    if v:                                                                          
-        _vD = v                                                                    
-    else:                                                                          
-        _vD    = np.sqrt(3/2.)*vc(Rsun, r, params) # km/s                          
-                                                                                   
-    _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s
-
-    _rhoDM = gNFW_rho(Rsun, r, params) # GeV/cm3
-    
-    conversion = 3.18578e23 #1.6021766e-7*(M_sun.value)
-
     # return
-    return (-9./16.*_G*f*_rhoDM/(R*_sigma_sb*epsilon) *
-            np.sqrt(8./(3*np.pi))/_vD * np.power(TDM, -4)*dervTDM_M*conversion)
+    return -3./TDM*dervTDM_M**2
 
-
-def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v, 
-                       R=R_jup.value, Rsun=8.178, epsilon=1):
+def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v): 
     """
     Return second derivative of temperature wrt mass [K/Msun^2]
     """
+    #TODO: sacar fuera der la funciÃn dervTDM_M --> input
     dervTDM_M = derivativeTDM_wrt_M(r, f, params, M, v)
+    #print(Tint, TDM, Ttot, dervTDM_M)
     dervT_M   = ((Tint/Ttot)**3* c(A) + (TDM/Ttot)**3*dervTDM_M) 
-
-    #TODO: may be missing factors (Tint/Ttot) & (TDM/Ttot)!!
     # return
-    return (-3/Ttot * np.power(dervT_M, 2) + np.power(Ttot, -3)*(
-             3*Tint*Tint*np.power(c(A), 2) + 
-             3*TDM*TDM*np.power(dervTDM_M, 2) +
-             np.power(TDM, 3)*dderivativeTDM_wrt_M(r, f, params, M, v, TDM, dervTDM_M)))
+    return (-3./Ttot*dervT_M**2 + np.power(Ttot, -3)*I(
+             3.*Tint**2*c(A)**2 + 
+             3.*TDM**2*dervTDM_M**2 +
+             TDM**3*dderivativeTDM_wrt_M(TDM, dervTDM_M))
+    )
 
 def dderivativeTint_wrt_A(M, A, a, b):
     """
