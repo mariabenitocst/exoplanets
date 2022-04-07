@@ -159,12 +159,13 @@ def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v):
     """
     Return second derivative of temperature wrt mass [K/Msun^2]
     """
+    #TODO: sth not working here!
     #TODO: sacar fuera der la funciÃn dervTDM_M --> input
     dervTDM_M = derivativeTDM_wrt_M(r, f, params, M, v)
     #print(Tint, TDM, Ttot, dervTDM_M)
     dervT_M   = ((Tint/Ttot)**3* c(A) + (TDM/Ttot)**3*dervTDM_M) 
     # return
-    return (-3./Ttot*dervT_M**2 + np.power(Ttot, -3)*I(
+    return (-3./Ttot*dervT_M**2 + np.power(Ttot, -3)*(
              3.*Tint**2*c(A)**2 + 
              3.*TDM**2*dervTDM_M**2 +
              TDM**3*dderivativeTDM_wrt_M(TDM, dervTDM_M))
@@ -202,6 +203,8 @@ def dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot):
             + dderivativeTDM_wrt_r(r, f, params, M, v, TDM)
             )
 
+#TODO:esta derivada es mas smooth que la derivada numerica, esto es consecuencia
+# de la interpolacion --> las diferencias son menores que un 10%
 def dderivativeTint_wrt_AM(M, A, a, b, b1, a1=25918.3):
     """
     delta_{M, A}^2(intrinsic temperature)
@@ -230,6 +233,11 @@ def dderivativeT_wrt_AM(r, M, A, a, b, b1, c, Tint, TDM, Ttot, f, params, v):
             (Tint/Ttot)**3*dderivativeTint_wrt_AM(M, A, a, b, b1)
             )
 
+#TODO:sierra behavior de ddTint/dAdM --> como consecuencia de que solo
+# contamos con Tint para valores discretos de A, y esta grid es coarse!
+# las diferencias entre la derivada numerica y la analitica son hasta de 
+# un factor 2!
+#Afecta esto a los resultados? Smooth the curve?
 def dderivativeT_wrt_MA(r, M, A, a, b, c, c1, Tint, TDM, Ttot, f, params, v):
     """
     delta_{A, M}^2(temperature)
