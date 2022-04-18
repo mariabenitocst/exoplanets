@@ -52,10 +52,10 @@ def delta_sigma_Tmodel(r, sigma_r, M, sigma_M, A, sigma_A,
     Ar = (dderivativeT_wrt_rA(r, M, A, a, b, Tint, TDM, Ttot, f, params, v)*
           (sigma_r**2 + sigma_A**2))
     # return
-    return 0.5*(
+    return (0.5*(
     np.power(dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v)*sigma_M**2, 2)
     +
     np.power(dderivativeT_wrt_A(M, A, Tint, Ttot, a, b)*sigma_A**2, 2)
     +
-    np.power(dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot)*sigma_r**2, 2)
-    + 2*MA + 2*Mr + 2*Ar)
+    np.power(dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot)*sigma_r**2, 2))
+    + MA + Mr + Ar)

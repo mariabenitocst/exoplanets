@@ -159,10 +159,8 @@ def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v):
     """
     Return second derivative of temperature wrt mass [K/Msun^2]
     """
-    #TODO: sth not working here!
     #TODO: sacar fuera der la funciÃn dervTDM_M --> input
     dervTDM_M = derivativeTDM_wrt_M(r, f, params, M, v)
-    #print(Tint, TDM, Ttot, dervTDM_M)
     dervT_M   = ((Tint/Ttot)**3* c(A) + (TDM/Ttot)**3*dervTDM_M) 
     # return
     return (-3./Ttot*dervT_M**2 + np.power(Ttot, -3)*(
@@ -251,7 +249,8 @@ def dderivativeT_wrt_MA(r, M, A, a, b, c, c1, Tint, TDM, Ttot, f, params, v):
             (Tint/Ttot)**3*c1(A)
             ) 
 
-def dderivativeTDM_wrt_Mr(r, f, params, M, v):
+def dderivativeTDM_wrt_Mr(r, f, params, M, v, TDM, 
+                          Rsun=8.178, epsilon=1):
     """
     delta_{r, M}^2(DM temperature)
     """
@@ -263,14 +262,14 @@ def dderivativeTDM_wrt_Mr(r, f, params, M, v):
                                                                                 
     _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s                                  
                                                                                 
-    _rhoDM = gNFW_rho(Rsun, r, params) # GeV/cm3     
+    rhoDM  = gNFW_rho(Rsun, r, params) # GeV/cm3     
 
     dervTDM_r   = derivativeTDM_wrt_r(r, f, params, M, v)
     dervRhoDM_r = -rhoDM*(params[0]/r + (3.-params[0]/(params[1]+r)))
                                                                             
     # return                                                                    
-    return (-3./16.*_G*f/(_sigma_sb*epsilon)*np.sqrt(8./(3*np.pi))/_vD/TDM**3*
-            (-rhoDM/r**2 - 3./r*_rhoDM/TDM*dervTDM_r + 1./r*dervRhoDM_r)
+    return (3./16.*_G*f/(_sigma_sb*epsilon)*np.sqrt(8./(3*np.pi))/_vD/TDM**3*
+            (-rhoDM/r**2 - 3./r*rhoDM/TDM*dervTDM_r + 1./r*dervRhoDM_r)
         )
 
 def dderivativeT_wrt_Mr(r, M, A, c, Tint, TDM, Ttot, f, params, v):
@@ -283,7 +282,7 @@ def dderivativeT_wrt_Mr(r, M, A, c, Tint, TDM, Ttot, f, params, v):
     # return                                           
     return (-3./Ttot*(dervT_M)*(TDM/Ttot)**3*dervTDM_r +                       
             3.*TDM**2/Ttot**3*dervTDM_M*dervTDM_r +                          
-            (TDM/Ttot)**3*dderivativeTDM_wrt_Mr(r, f, params, M, v)
+            (TDM/Ttot)**3*dderivativeTDM_wrt_Mr(r, f, params, M, v, TDM)
             ) 
 
 def dderivativeTDM_wrt_rM(r, f, params, M, v):
