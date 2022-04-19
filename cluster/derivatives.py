@@ -38,6 +38,7 @@ def derivativeTDM_wrt_M(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
     # DM temperature^-3 [1/K^3]
     T_DM3 = np.power((f*_rhoDM*_vDM*(1+3./2.*np.power(vesc/_vD, 2))*
                      conversion_into_w)/(4*_sigma_sb*epsilon), -3./4.)
+    #print(np.power(T_DM3, -1/3))
     # return 
     return (T_DM3*3./16.*np.sqrt(8./3./np.pi)*f/_sigma_sb/
             epsilon*_rhoDM*_G/_vD/R*
@@ -73,7 +74,7 @@ def derivativeTDM_wrt_r(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
     # DM temperature [K]
     T_DM = np.power((f*_rhoDM*_vDM*(1+3./2.*np.power(vesc/_vD, 2))*
                      conversion_into_w)/(4*_sigma_sb*epsilon), 1./4.)
-    
+    #print(T_DM)
     return(0.25*T_DM*(-params[0]/r - (3-params[0])/(params[1] + r)))
 
 def derivativeTintana_wrt_A(M, A, a, b):
@@ -240,37 +241,24 @@ def dderivativeT_wrt_MA(r, M, A, a, b, c, c1, Tint, TDM, Ttot, f, params, v):
     """
     delta_{A, M}^2(temperature)
     """
-    dervTint_A = derivativeTintana_wrt_A(M, A, a, b)                               
-    dervT_M    = ((Tint/Ttot)**3* c(A) +                                           
-                   (TDM/Ttot)**3*derivativeTDM_wrt_M(r, f, params, M, v))          
-    # return                                                                       
-    return (-3./Ttot*(dervT_M)*((Tint/Ttot)**3*dervTint_A) +                       
-            3.*Tint**2/Ttot**3*c(A)*dervTint_A +                                   
+    dervTint_A = derivativeTintana_wrt_A(M, A, a, b)                          
+    dervT_M    = ((Tint/Ttot)**3* c(A) +                                      
+                   (TDM/Ttot)**3*derivativeTDM_wrt_M(r, f, params, M, v))     
+    # return                                                                  
+    return (-3./Ttot*(dervT_M)*((Tint/Ttot)**3*dervTint_A) +                  
+            3.*Tint**2/Ttot**3*c(A)*dervTint_A +                              
             (Tint/Ttot)**3*c1(A)
             ) 
 
-def dderivativeTDM_wrt_Mr(r, f, params, M, v, TDM, 
-                          Rsun=8.178, epsilon=1):
-    """
-    delta_{r, M}^2(DM temperature)
-    """
-    #TODO: Are the formula + conversion units correct?                          
-    if v:                                                                       
-        _vD = v                                                                 
-    else:                                                                       
-        _vD    = np.sqrt(3/2.)*vc(Rsun, r, params) # km/s                          
-                                                                                
-    _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s                                  
-                                                                                
-    rhoDM  = gNFW_rho(Rsun, r, params) # GeV/cm3     
-
-    dervTDM_r   = derivativeTDM_wrt_r(r, f, params, M, v)
-    dervRhoDM_r = -rhoDM*(params[0]/r + (3.-params[0]/(params[1]+r)))
-                                                                            
+def dderivativeTDM_wrt_Mr(r, f, params, M, v, TDM, Rsun=8.178, epsilon=1):                                  
+    """                                                                            
+    delta_{r, M}^2(DM temperature)                                                 
+    """                                                                                                                                                                                               
     # return                                                                    
-    return (3./16.*_G*f/(_sigma_sb*epsilon)*np.sqrt(8./(3*np.pi))/_vD/TDM**3*
-            (-rhoDM/r**2 - 3./r*rhoDM/TDM*dervTDM_r + 1./r*dervRhoDM_r)
-        )
+    return (-derivativeTDM_wrt_M(r, f, params, M, v)*(
+                (params[0]/r + (3.-params[0])/(params[1]+r))+
+                3./TDM*derivativeTDM_wrt_r(r, f, params, M, v))
+            )
 
 def dderivativeT_wrt_Mr(r, M, A, c, Tint, TDM, Ttot, f, params, v):
     """
@@ -303,7 +291,7 @@ def dderivativeT_wrt_rM(r, M, A, c, Tint, TDM, Ttot, f, params, v):
     dervT_M   = ((Tint/Ttot)**3* c(A) +                                       
                 (TDM/Ttot)**3*dervTDM_M)          
     # return                                                                  
-    return (-3./Ttot*(dervT_M)*((Tint/Ttot)**3*dervTDM_r) +                   
+    return (-3./Ttot*(dervT_M)*((TDM/Ttot)**3*dervTDM_r) +                   
             3.*TDM**2/Ttot**3*dervTDM_M*dervTDM_r +                           
             (TDM/Ttot)**3*dderivativeTDM_wrt_rM(r, f, params, M, v)           
             ) 

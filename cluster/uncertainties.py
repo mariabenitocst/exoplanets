@@ -17,16 +17,15 @@ def sigma_Tmodel2(r, M, A, sigma_r, sigma_M, sigma_A,
     Input:                                                                      
         r : Galactocentric distance [kpc]                                       
         M : mass [Msun]                                                         
-        A : age [Gyr]                                                              
-        a : interpolation function                                                 
-        b : interpolation function                                                 
-        c : = derivativeTintana_wrt_M - interpolation function [K/Msun]            
+        A : age [Gyr]                                                         
+        a : interpolation function                                            
+        b : interpolation function                                            
+        c : = derivativeTintana_wrt_M - interpolation function [K/Msun]       
                                                                                 
     Assumption: uncertainties in age, mass and galactocentric distance          
         are independent                                                         
     """                                                                           
     #TODO: updated input arguments --> update calls to this function!
-    M_in_kg = M*conv_Msun_to_kg                                                   
                                                                                   
     dervT_M = ((Tint/Ttot)**3* c(A) +                                              
                (_TDM/Ttot)**3*derivativeTDM_wrt_M(r, f, params, M, v))             
