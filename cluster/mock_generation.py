@@ -4,13 +4,13 @@
 # dwarfs (BDs)
 #
 # ===========================================================================
-import utils
-import imp
-imp.reload(utils)
+#import utils
+#import imp
+#imp.reload(utils)
 import numpy as np
 from scipy.interpolate import griddata
-from astropy.constants import L_sun, R_jup, M_jup, M_sun
-from utils import heat, temperature_withDM
+from astropy.constants import R_jup, M_jup, M_sun
+from _utils import temperature_withDM
 import sys
 
 def rho_bulge(r, phi, theta, R0=8.178, x0=0.899, y0=0.386, z0=0.250, 

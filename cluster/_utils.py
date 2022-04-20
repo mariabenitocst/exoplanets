@@ -1,16 +1,139 @@
 import numpy as np
-from scipy.interpolate import griddata, interp1d
-from scipy.misc import derivative
 from astropy.constants import R_jup, M_jup, G, sigma_sb
-from utils import gNFW_rho, vc
+from scipy.special import hyp2f1
+from scipy.interpolate import interp1d
+import astropy.units as u
+#import _derivatives
+#from _derivatives import dderivativeT_wrt_M, dderivativeT_wrt_A, dderivativeT_wrt_r
 
-# Constant parameters & conversions ========================================== 
-_sigma_sb = sigma_sb.value
-_G        = G.value
-conversion_into_K_vs_kg = 1.60217e-7
-conversion_into_w       = 0.16021766
-conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]
-# ============================================================================
+# Constant parameters & conversions ==========================================  
+_sigma_sb = sigma_sb.value                                                      
+_G        = G.value                                                             
+conversion_into_K_vs_kg = 1.60217e-7                                            
+conversion_into_w       = 0.16021766                                            
+conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]                               
+# ============================================================================ 
+
+def delta_temperature_withDM(r, M, A, sigma_r, sigma_M, sigma_A, Tint, TDM, f, 
+                             params, a, b, c, v):
+    """
+    2nd/3rd-order correction to expected temperature due to non-linear relation 
+    between temperature and mass, age, galactocentric distance variables.
+    
+    Correction = 0.5*Tr(H_0*C)=0.5*(delta_MM T*sigma_M^2 + 
+                                    delta_AA T*sigma_A^2 + 
+                                    delta_RR T*sigma_R^2) 
+    """
+    Ttot = np.power(TDM**4 + Tint**4, 0.25)
+    # return
+    return 0.5*(dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v)*np.power(sigma_M, 2)
+            + dderivativeT_wrt_A(M, A, Tint, Ttot, a, b)*np.power(sigma_A, 2)
+            + dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot)*np.power(sigma_r, 2)
+            )
+
+
+def vc(Rsun, Rint, parameters):
+    data = np.genfromtxt("../data/rc_e2bulge_R08.178_J_corr.dat", unpack=True)
+    r = data[0]
+    vB = data[1]
+    data = np.genfromtxt("../data/rc_hgdisc_R08.178_corr.dat", unpack=True)
+    vD = data[1]
+    vDM = vgNFW(Rsun, r, parameters)
+    vtot = np.sqrt(np.power(vB, 2) + np.power(vD, 2)+ np.power(vDM, 2))
+    vtot_intp = interp1d(r, vtot)
+    return vtot_intp(Rint)
+
+def vgNFW(Rsun, R, parameters):
+    """
+    Rotation velocity for gNFW dark matter density profile
+    """
+    # gNFW parameters
+    gamma = parameters[0]
+    Rs    = parameters[1]
+    rho0  = parameters[2] 
+    v     = []; 
+    for Rint in R:
+        hyp=np.float(hyp2f1(3-gamma,3-gamma,4-gamma,-Rint/Rs))
+        Integral=(-2**(2+3*gamma)*np.pi*Rint**(3-gamma)*(1+
+                  Rsun*(1./Rs))**(3-gamma)*rho0*hyp)/(-3+gamma)
+        v.append(np.sqrt(1.18997*10.**(-31.)*Integral/Rint)*3.08567758*10.**(16.))
+    v = np.array(v,dtype=np.float64)      
+    # Return
+    return v
+
+def gNFW_rho(Rsun, R, parameters):
+    """
+    Return gNFW density profile at r distance from the GC
+    Denstiy has same units as local DM density rho0
+    """
+    # gNFW parameters
+    gamma = parameters[0] 
+    Rs    = parameters[1]
+    rho0  = parameters[2]
+    # Density profile
+    rho   = rho0*np.power(Rsun/R, gamma)*np.power((Rs+Rsun)/(Rs+R), 3-gamma)    
+    # Return
+    return rho
+
+def heat_DM(r, f=1, R=R_jup.value, M=M_jup.value, Rsun=8.178, 
+            parameters=[1., 20., 0.42], v=None):
+    """
+    Heat flow due to DM capture and annihilation
+    """
+    vesc   = (np.sqrt(2*_G*M/R))*1e-3 # km/s 
+    if v:
+        _vD = v
+        #print(_vD, "here i am")
+    else:
+        _vD    = np.sqrt(3/2.)*vc(Rsun, r, parameters) # km/s
+        #print("rC")
+    _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s
+    _rhoDM = gNFW_rho(Rsun, r, parameters) # GeV/cm3
+
+    # return
+    return (f*np.pi*R**2*_rhoDM*_vDM*(1+3./2.*np.power(vesc/_vD, 2))*
+            conversion_into_w) # W
+
+def T_DM(r, R=R_jup.value, M=M_jup.value, Rsun=8.178, f=1., 
+         params=[1., 20., 0.42], v=None, epsilon=1.):                                       
+    """                                                                        
+    DM temperature                                                             
+    """   
+    # escape velocity
+    vesc   = np.sqrt(2*_G*M/R)*1e-3 # km/s                      
+    if v:                                                                      
+        _vD = v                                                                
+    else:                                                                      
+        _vD    = np.sqrt(3/2.)*vc(Rsun, r, params) # km/s                      
+                                                                               
+    _vDM   =  np.sqrt(8./(3*np.pi))*_vD # km/s                                 
+    _rhoDM = gNFW_rho(Rsun, r, params) # GeV/cm3                               
+    # return                                                                   
+    return np.power((f*_rhoDM*_vDM*(1+3./2.*np.power(vesc/_vD, 2))*    
+                    conversion_into_w)/(4*_sigma_sb*epsilon), 1./4.)
+
+def temperature_withDM(r, Tint, R=R_jup.value, M=M_jup.value, 
+                       f=1., p=[1., 20., 0.42], v=None, Rsun=8.178, epsilon=1):
+    """
+    Exoplanet temperature : internal heating + DM heating
+    """
+    return (np.power(np.power(Tint, 4) + 
+                     np.power(T_DM(r, R=R, M=M, Rsun=Rsun, f=f, params=p, v=v, 
+                                   epsilon=epsilon), 4)
+                     , 0.25))
+
+def temperature(heat, R, epsilon=1):
+    return np.power(heat/(4*np.pi*R**2*sigma_sb*epsilon), 0.25)
+
+def heat(temp, R, epsilon=1):
+        return (4*np.pi*R**2*sigma_sb.value*temp**4*epsilon)
+
+
+# ============================================================================ 
+# DERIVATIVES
+# ============================================================================ 
+from scipy.misc import derivative
+from scipy.interpolate import griddata, interp1d
 
 def derivativeTDM_wrt_M(r, f, params, M, v, R=R_jup.value, Rsun=8.178,
                         epsilon=1):
@@ -160,7 +283,7 @@ def dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v):
     """
     Return second derivative of temperature wrt mass [K/Msun^2]
     """
-    #TODO: sacar fuera der la funciÃn dervTDM_M --> input
+    #TODO: sacar fuera der la funci?n dervTDM_M --> input
     dervTDM_M = derivativeTDM_wrt_M(r, f, params, M, v)
     dervT_M   = ((Tint/Ttot)**3* c(A) + (TDM/Ttot)**3*dervTDM_M) 
     # return
@@ -189,8 +312,9 @@ def dderivativeT_wrt_A(M, A, Tint, Ttot, a, b):
 
 def dderivativeTDM_wrt_r(r, f, params, M, v, TDM):
     # return
-    return 0.25*(derivativeTDM_wrt_r(r, f, params, M, v)*(-params[0]/r-(3-params[0])/(params[1]+r))
-                 + TDM*(params[0]/np.power(r, 2)+(3-params[0])/np.power(params[1]+r, 2)))
+    return 0.25*(derivativeTDM_wrt_r(r, f, params, M, v)*
+       (-params[0]/r-(3-params[0])/(params[1]+r))
+       + TDM*(params[0]/np.power(r, 2)+(3-params[0])/np.power(params[1]+r, 2)))
 
 def dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot):
     """
@@ -305,4 +429,63 @@ def dderivativeT_wrt_rA(r, M, A, a, b, Tint, TDM, Ttot, f, params, v):
     return (-3./Ttot*(TDM/Ttot)**3*derivativeTDM_wrt_r(r, f, params, M, v)*
         (Tint/Ttot)**3*derivativeTintana_wrt_A(M, A, a, b))
 
+# ============================================================================
+# UNCERTAINTIES
+# This script implements the propagation of mass, age, galactocentric
+# distance (r) uncertainties into an uncertainty in BD temperature
+#
+# Notice that temperature is not a linear function of mass, age and r.
+# Therefore, the temperature function can not be approximated by the 1st-order 
+# Taylor expansion around the means of mass, age and r.
+# This script implements uncertainty propagation assuming 2nd-order Taylor
+# expansion (see e.g. Mana & Pennecchi 2007)
+# =========================================================================== 
 
+def sigma_Tmodel2(r, M, A, sigma_r, sigma_M, sigma_A,
+                  Tint, TDM, Ttot, f, params, a, b, c, v):
+    """                                                                         
+    Return squared uncertainty in model temperature [UNITS??]                   
+                                                                                
+    Input:                                                                      
+        r : Galactocentric distance [kpc]                                       
+        M : mass [Msun]                                                         
+        A : age [Gyr]                                                         
+        a : interpolation function                                            
+        b : interpolation function                                            
+        c : = derivativeTintana_wrt_M - interpolation function [K/Msun]       
+                                                                                
+    Assumption: uncertainties in age, mass and galactocentric distance          
+        are independent                                                         
+    """                                                                           
+                                                                                 
+    dervT_M = ((Tint/Ttot)**3* c(A) +                                              
+               (TDM/Ttot)**3*derivativeTDM_wrt_M(r, f, params, M, v))             
+    # return                                                                    
+    return (np.power((Tint/Ttot)**3*derivativeTintana_wrt_A(M, A, a, b)*sigma_A, 2)+
+            np.power(dervT_M*sigma_M, 2)+                                         
+            np.power((TDM/Ttot)**3*derivativeTDM_wrt_r(r, f, params, M, v)*sigma_r, 2))
+
+
+def delta_sigma_Tmodel2(r, M, A, sigma_r, sigma_M, sigma_A,
+                        Tint, TDM, Ttot, f, params, a, b, b1, c, c1, v):
+    """
+    2nd-order correction to linear propagion of uncertainties
+    """
+    Mr = (
+    dderivativeT_wrt_Mr(r, M, A, c, Tint, TDM, Ttot, f, params, v)*sigma_M**2 + 
+    dderivativeT_wrt_rM(r, M, A, c, Tint, TDM, Ttot, f, params, v)*sigma_r**2
+        )
+    MA = (
+    dderivativeT_wrt_AM(r, M, A, a, b, b1, c, Tint, TDM, Ttot, f, params, v)*sigma_A**2*
+    dderivativeT_wrt_MA(r, M, A, a, b, c, c1, Tint, TDM, Ttot, f, params, v)*sigma_M**2
+            )
+    Ar = (dderivativeT_wrt_rA(r, M, A, a, b, Tint, TDM, Ttot, f, params, v)*
+          (sigma_r**2 + sigma_A**2))
+    # return
+    return (0.5*(
+    np.power(dderivativeT_wrt_M(r, M, A, Tint, TDM, Ttot, c, f, params, v)*sigma_M**2, 2)
+    +
+    np.power(dderivativeT_wrt_A(M, A, Tint, Ttot, a, b)*sigma_A**2, 2)
+    +
+    np.power(dderivativeT_wrt_r(r, f, params, M, v, TDM, Ttot)*sigma_r**2, 2))
+    + MA + Mr + Ar)

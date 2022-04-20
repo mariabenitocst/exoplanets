@@ -3,9 +3,9 @@ sys.path.append("/home/mariacst/exoplanets/running/.env/lib/python3.6/site-packa
 import emcee
 import numpy as np
 from scipy.interpolate import griddata
-import imp
-import mock_generation
-imp.reload(mock_generation)
+#import imp
+#import mock_generation
+#imp.reload(mock_generation)
 from mock_generation import mock_population_all
 from astropy.constants import R_jup
 import glob
@@ -53,22 +53,26 @@ ages, c = np.genfromtxt(path + "derv_ana_wrt_M.dat", unpack=True)
 a_interp = interp1d(masses, a)
 b_interp = interp1d(masses, b)
 c_interp = interp1d(ages, c)
+masses, b1 = np.genfromtxt(path + "dderv_ana_wrt_AM.dat", unpack=True)
+b1_interp  = interp1d(masses, b1)
+ages, c1  = np.genfromtxt(path + "dderv_ana_wrt_MA.dat", unpack=True)
+c1_interp = interp1d(ages, c1)
 
 ndim     = 3
-nwalkers = 1000
+nwalkers = 150
 # first guess
 p0 = [[0.9, 0.9, 20.] + 1e-4*np.random.randn(ndim) for j in range(nwalkers)]
 
 sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
               args=(robs, sigmarobs, Mobs, sigmaMobs, Aobs, sigmaAobs, Tobs,
-                    sigmaTobs, Teff, points, values, a_interp, b_interp, 
-                    c_interp, v), 
+                    sigmaTobs, Teff, a_interp, b_interp, b1_interp,
+                    c_interp, c1_interp, v), 
               moves=[(emcee.moves.DEMove(), 0.8),           
                      (emcee.moves.DESnookerMove(), 0.2)])
   
-pos, prob, state  = sampler.run_mcmc(p0, 4000, progress=True)
+pos, prob, state  = sampler.run_mcmc(p0, 200, progress=True)
 sampler.reset()
-pos, prob, state  = sampler.run_mcmc(pos, 24000, progress=True)
+pos, prob, state  = sampler.run_mcmc(pos, 6000, progress=True)
 
 
 # Save likelihood
