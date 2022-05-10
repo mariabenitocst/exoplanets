@@ -6,7 +6,7 @@ from scipy.interpolate import griddata
 #import imp
 #import mock_generation
 #imp.reload(mock_generation)
-from mock_generation import mock_population_all
+from mock_generation import mock_population
 from astropy.constants import R_jup
 import glob
 import pickle
@@ -40,7 +40,7 @@ values = data[2]
 # Mock observation
 np.random.seed(rank)
 (robs, sigmarobs, Tobs, sigmaTobs, Mobs,
-     sigmaMobs, Aobs, sigmaAobs) = mock_population_all(nBDs, relTobs, sigma,
+     sigmaMobs, Aobs, sigmaAobs) = mock_population(nBDs, relTobs, sigma,
                                       sigma, sigma, f_true, gamma_true,
                                       rs_true, rho0_true=rho0, Tmin=Tcut, v=v)
 ## calculate predictic intrinsic temperature
@@ -70,9 +70,9 @@ sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
               moves=[(emcee.moves.DEMove(), 0.8),           
                      (emcee.moves.DESnookerMove(), 0.2)])
   
-pos, prob, state  = sampler.run_mcmc(p0, 200, progress=True)
+pos, prob, state = sampler.run_mcmc(p0, 200, progress=True)
 sampler.reset()
-pos, prob, state  = sampler.run_mcmc(pos, 6000, progress=True)
+pos, prob, state = sampler.run_mcmc(pos, 6000, progress=True)
 
 
 # Save likelihood
