@@ -87,7 +87,7 @@ def hpd_frequency(hpd_interval, f, gamma, rs, rank=100):
 
 
 def statistics(filepath, filepath2, ex, nBDs, rel_unc, f, gamma, rs, 
-               rank=100, D=2):
+               nwalkers, steps, rank=100, D=2):
     """
     Calculate mean, median, MAP & ML point estimates
 
@@ -98,68 +98,76 @@ def statistics(filepath, filepath2, ex, nBDs, rel_unc, f, gamma, rs,
         rank        : number of simulations
         D           : dimension parameter space
     """
-    mean       = np.zeros((D, rank))
-    median     = np.zeros((D, rank))
-    _16th      = np.zeros((D, rank))
-    _84th      = np.zeros((D, rank))
+    #mean       = np.zeros((D, rank))
+    #median     = np.zeros((D, rank))
+    #_16th      = np.zeros((D, rank))
+    #_84th      = np.zeros((D, rank))
     MAP        = np.zeros((D, rank))
     ML         = np.zeros((D, rank))
-    LI_min     = np.zeros((D, rank))
-    LI_max     = np.zeros((D, rank))
-    hpd_1sigma = []
+    #LI_min     = np.zeros((D, rank))
+    #LI_max     = np.zeros((D, rank))
+    #hpd_1sigma = []
 
     for i in range(rank):
         #print(i+1)
         # load posterior + likelihood
-        file_name  = (filepath + ("N%isigma%.1f/posterior_" %(nBDs, rel_unc))
+        file_name  = (filepath + ("N%i/posterior_" %(nBDs))
                      + ex + 
-                     ("_N%i_sigma%.1f_f%.1fgamma%.1frs%.1fv%i" 
-                     %(nBDs, rel_unc, f, gamma, rs, i+1)))
+                     ("_N%i_sigma%.1f_gamma%.1frs%.1f_nwalkers%i_steps%i_v%i" 
+                     %(nBDs, rel_unc, gamma, rs, nwalkers, steps, i+101)))
         samples    = pickle.load(open(file_name, "rb"))
-        file_name2 = (filepath2 + ("N%isigma%.1f/like_" %(nBDs, rel_unc))
+        file_name2 = (filepath2 + ("N%i/like_" %(nBDs))
                      + ex +
-                     ("_N%i_sigma%.1f_f%.1fgamma%.1frs%.1fv%i"
-                     %(nBDs, rel_unc, f, gamma, rs, i+1)))
+                     ("_N%i_sigma%.1f_gamma%.1frs%.1f_nwalkers%i_steps%i_v%i"
+                     %(nBDs, rel_unc, gamma, rs, nwalkers, steps, i+101)))
         like       = pickle.load(open(file_name2, "rb"))
+
+        counts, bins = np.histogramdd(samples, bins=1500)
+        maxval = np.amax(counts)
+        pos = np.where(counts==maxval)
 
         # calculate point estimates
         for j in range(D):
-            mean[j][i]   = np.mean(samples[:, j])
-            median[j][i] = np.percentile(samples[:, j], [50], axis=0)
-            _16th[j][i]  = np.percentile(samples[:, j], [16], axis=0)
-            _84th[j][i]  = np.percentile(samples[:, j], [84], axis=0)
+            #mean[j][i]   = np.mean(samples[:, j])
+            #median[j][i] = np.percentile(samples[:, j], [50], axis=0)
+            #_16th[j][i]  = np.percentile(samples[:, j], [16], axis=0)
+            #_84th[j][i]  = np.percentile(samples[:, j], [84], axis=0)
             #TODO need to change # bins to see if results differ
-            _n, _bins    = np.histogram(samples[:, j], bins=50)
-            MAP[j][i]    = _bins[np.argmax(_n)]
+            # MAP using 1D marginilized
+            #_n, _bins    = np.histogram(samples[:, j], bins=50)
+            #MAP[j][i]    = _bins[np.argmax(_n)]
+            # MAP of full posterios
+            MAP[j][i]    = (bins[j][pos[j]]+bins[j][pos[j]+1])/2.
+            print(i+101, MAP[j][i])
             ML[j][i]     = samples[:, j][np.argmax(like)]
-            _min, _max   = LI(like, samples[:, j])
-            LI_min[j][i] = _min
-            LI_max[j][i] = _max
+            #_min, _max   = LI(like, samples[:, j])
+            #LI_min[j][i] = _min
+            #LI_max[j][i] = _max
         #hpd_1sigma.append(hpd(samples, alpha=0.32))
 
     #hpd_1sigma = np.array(hpd_1sigma)    
     #print(hpd_1sigma.shape)
 
-    filepath = "/home/mariacst/exoplanets/results/velocity/v100/analytic/fixedT10/statistics_"
-    output = open(filepath + ex + ("_N%i_sigma%.1f_f%.1fgamma%.1frs%.1f" 
-                              %(nBDs, rel_unc, f, gamma, rs)), "w")
+    filepath = "/home/mariacst/exoplanets/statistics_"
+    output = open(filepath + ex + ("_N%i_sigma%.1f_gamma%.1frs%.1f" 
+                              %(nBDs, rel_unc, gamma, rs)), "w")
     for i in range(rank):
-        for j in range(D):
-            output.write("%.4f  " %mean[j][i])
-        for j in range(D):
-            output.write("%.4f  " %median[j][i])
-        for j in range(D):
-            output.write("%.4f  " %_16th[j][i])
-        for j in range(D):
-            output.write("%.4f  " %_84th[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %mean[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %median[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %_16th[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %_84th[j][i])
         for j in range(D):
             output.write("%.4f  " %MAP[j][i])
         for j in range(D):
             output.write("%.4f  " %ML[j][i])
-        for j in range(D):
-            output.write("%.4f  " %LI_min[j][i])
-        for j in range(D):
-            output.write("%.4f  " %LI_max[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %LI_min[j][i])
+        #for j in range(D):
+        #    output.write("%.4f  " %LI_max[j][i])
         #for j in range(D):
         #    output.write("%.4f  " %hpd_1sigma[i][j, 0])
         #for j in range(D):
@@ -173,19 +181,21 @@ def statistics(filepath, filepath2, ex, nBDs, rel_unc, f, gamma, rs,
 
 
 if __name__ == '__main__':
-    _path     = "/hdfs/local/mariacst/exoplanets/results/"
-    _path_f   = "velocity/v100/analytic/fixedT10/"
-    filepath  = _path + "posterior/" + _path_f
-    filepath2 = _path + "likelihood/" + _path_f
-    ex        = "fixedT10v100"
-    N         = 1000
+    _path     = "/hdfs/local/mariacst/exoplanets/results/onlySigmaT/"
+    #_path_f   = "velocity/v100/analytic/fixedT10/"
+    filepath  = _path + "posterior/" #+ _path_f
+    filepath2 = _path + "likelihood/" #+ _path_f
+    ex        = "Tcut_onlySigmaT"
+    N         = int(sys.argv[1])
+    nwalkers  = int(sys.argv[2])
+    steps     = int(sys.argv[3])
     #sigma     = float(sys.argv[1])
     #print(N)
     nBDs     = [N]
-    rel_unc  = [0.2]
+    rel_unc  = [0.1]
     f        = 1.
     rs       = [10.]
-    gamma    = [1.3, 1.4, 1.5]
+    gamma    = [1.2]
 
     for N in nBDs:
         for rel in rel_unc:
@@ -194,7 +204,7 @@ if __name__ == '__main__':
                     print(_rs, _g)
                     try:
                         statistics(filepath, filepath2, ex, N, rel, f, _g, _rs, 
-                                   100, 3)
+                                   nwalkers, steps, 100, 3)
                     except Exception as e:
                         print(e)
                         print("este no!")
