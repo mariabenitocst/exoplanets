@@ -1,14 +1,18 @@
 import sys
-#sys.path.append("/home/mariacst/exoplanets/.venv/lib/python3.6/site-packages")
 import numpy as np
+import arviz as az
 import pickle
 from scipy.stats import binned_statistic
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize
 import pdb
-#from pymc3.stats import hpd
 
-def LI(L, samples, bin_n=20, verbose=False):
+def return_MAP(samples, nbins=50):
+    _n, _bins = np.histogram(samples, bins=nbins)
+    return(_bins[np.argmax(_n)])
+
+
+def LI(L, samples, bin_n=50, verbose=False):
     """
     For each parameter, construct profile likelihood and return the profile likelihood interval
     (i.e. region where the log Likelihood is within 1 of its maximum value)
@@ -66,28 +70,8 @@ def LI(L, samples, bin_n=20, verbose=False):
     #Return
     return  LImin, LImax
 
-def hpd_frequency(hpd_interval, f, gamma, rs, rank=100):
-    """
-    Return the number of times the true value is within the HPD interval
-    """
-    how_many_rs    = 0
-    how_many_gamma = 0
-    how_many_rho0  = 0
-    how_many_sigma = 0
-    how_many_tau   = 0
-    for i in range(rank):
-        if np.round(hpd_interval[i][0, 0],2) <= f <= np.round(hpd_interval[i][0, 1],2):
-            how_many_f += 1
-        if np.round(hpd_interval[i][1, 0],2) <= gamma <= np.round(hpd_interval[i][1, 1],2):
-            how_many_gamma += 1
-        if np.round(hpd_interval[i][2, 0],2) <= rs <= np.round(hpd_interval[i][2, 1],2):
-            how_many_rs += 1
-    # Return
-    return [how_many_f, how_many_gamma, how_many_rs, how_many_sigma]
 
-
-def statistics(filepath, filepath2, ex, nBDs, rel_unc, f, gamma, rs, 
-               nwalkers, steps, rank=100, D=2):
+def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
     """
     Calculate mean, median, MAP & ML point estimates
 
@@ -98,115 +82,64 @@ def statistics(filepath, filepath2, ex, nBDs, rel_unc, f, gamma, rs,
         rank        : number of simulations
         D           : dimension parameter space
     """
-    #mean       = np.zeros((D, rank))
-    #median     = np.zeros((D, rank))
-    #_16th      = np.zeros((D, rank))
-    #_84th      = np.zeros((D, rank))
-    MAP        = np.zeros((D, rank))
-    ML         = np.zeros((D, rank))
-    #LI_min     = np.zeros((D, rank))
-    #LI_max     = np.zeros((D, rank))
-    #hpd_1sigma = []
+    out_path = "/home/mariacst/exoplanets/results/power_law/sigma/statistics_"
+    output = open(out_path + ex + 
+                ("_N%i_sigma%.1f_gamma%.1frs%.1f_1_200_final_non_linear_wider"%(nBDs, sigma, gamma, rs)), 
+                "w") 
 
     for i in range(rank):
-        #print(i+1)
-        # load posterior + likelihood
-        file_name  = (filepath + ("N%i/posterior_" %(nBDs))
+        #print(i)
+        file_name  = (filepath + ("%i/" %(i+1))
                      + ex + 
-                     ("_N%i_sigma%.1f_gamma%.1frs%.1f_nwalkers%i_steps%i_v%i" 
-                     %(nBDs, rel_unc, gamma, rs, nwalkers, steps, i+101)))
-        samples    = pickle.load(open(file_name, "rb"))
-        file_name2 = (filepath2 + ("N%i/like_" %(nBDs))
-                     + ex +
-                     ("_N%i_sigma%.1f_gamma%.1frs%.1f_nwalkers%i_steps%i_v%i"
-                     %(nBDs, rel_unc, gamma, rs, nwalkers, steps, i+101)))
-        like       = pickle.load(open(file_name2, "rb"))
+                     ("_N%i_sigma%.1f_gamma%.1f_rs%.1f_v%ipost_equal_weights.dat" 
+                     %(nBDs, sigma, gamma, rs, i+1)))
+        samples    = np.genfromtxt(file_name, unpack=True)
 
-        counts, bins = np.histogramdd(samples, bins=1500)
-        maxval = np.amax(counts)
-        pos = np.where(counts==maxval)
+        # 68% highest density interval
+        hdi_low, hdi_high = az.hdi(samples[1], hdi_prob=0.68)
+        # profile L interval (region where log-L is within 1 of maximum)
+        LI_low, LI_high = LI(samples[2], samples[1], bin_n=60)
 
         # calculate point estimates
-        for j in range(D):
-            #mean[j][i]   = np.mean(samples[:, j])
-            #median[j][i] = np.percentile(samples[:, j], [50], axis=0)
-            #_16th[j][i]  = np.percentile(samples[:, j], [16], axis=0)
-            #_84th[j][i]  = np.percentile(samples[:, j], [84], axis=0)
-            #TODO need to change # bins to see if results differ
-            # MAP using 1D marginilized
-            #_n, _bins    = np.histogram(samples[:, j], bins=50)
-            #MAP[j][i]    = _bins[np.argmax(_n)]
-            # MAP of full posterios
-            MAP[j][i]    = (bins[j][pos[j]]+bins[j][pos[j]+1])/2.
-            print(i+101, MAP[j][i])
-            ML[j][i]     = samples[:, j][np.argmax(like)]
-            #_min, _max   = LI(like, samples[:, j])
-            #LI_min[j][i] = _min
-            #LI_max[j][i] = _max
-        #hpd_1sigma.append(hpd(samples, alpha=0.32))
-
-    #hpd_1sigma = np.array(hpd_1sigma)    
-    #print(hpd_1sigma.shape)
-
-    filepath = "/home/mariacst/exoplanets/statistics_"
-    output = open(filepath + ex + ("_N%i_sigma%.1f_gamma%.1frs%.1f" 
-                              %(nBDs, rel_unc, gamma, rs)), "w")
-    for i in range(rank):
-        #for j in range(D):
-        #    output.write("%.4f  " %mean[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %median[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %_16th[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %_84th[j][i])
-        for j in range(D):
-            output.write("%.4f  " %MAP[j][i])
-        for j in range(D):
-            output.write("%.4f  " %ML[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %LI_min[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %LI_max[j][i])
-        #for j in range(D):
-        #    output.write("%.4f  " %hpd_1sigma[i][j, 0])
-        #for j in range(D):
-        #    output.write("%.4f  " %hpd_1sigma[i][j, 1])
+        output.write("%.4f  "%np.mean(samples[1])) # mean
+        output.write("%.4f  "%np.percentile(samples[1], [50])) # median
+        output.write("%.4f  "%np.percentile(samples[1], [16]))
+        output.write("%.4f  "%np.percentile(samples[1], [84]))
+        output.write("%.4f  "%return_MAP(samples[1])) #MAP
+        output.write("%.4f  "%hdi_low)
+        output.write("%.4f  "%hdi_high)
+        output.write("%.4f  "%samples[1][np.argmax(samples[2])]) # ML
+        output.write("%.4f  "%LI_low)
+        output.write("%.4f  "%LI_high)
         output.write("\n")
+
     output.close()
+
+    print("Remember to manually check convergence of profile L intervals!")
+    print("Oh no! I know ... it is boring!")
 
     # return
     return
 
 
-
 if __name__ == '__main__':
-    _path     = "/hdfs/local/mariacst/exoplanets/results/onlySigmaT/"
-    #_path_f   = "velocity/v100/analytic/fixedT10/"
-    filepath  = _path + "posterior/" #+ _path_f
-    filepath2 = _path + "likelihood/" #+ _path_f
-    ex        = "Tcut_onlySigmaT"
-    N         = int(sys.argv[1])
-    nwalkers  = int(sys.argv[2])
-    steps     = int(sys.argv[3])
-    #sigma     = float(sys.argv[1])
-    #print(N)
-    nBDs     = [N]
-    rel_unc  = [0.1]
+    _path = "./out/wider/"
+    #_path     = "/hdfs/local/mariacst/exoplanets/results/multinest/onlySigmaT/power_law/wider/"
+    ex        = "T650_multinest"
+    nBDs     = [100]#, 1000]#, 1000]#, 1000]
+    sigma    = float(sys.argv[1])
     f        = 1.
-    rs       = [10.]
-    gamma    = [1.2]
+    rs       = [5., 20.]
+    gamma    = [0.5, 0.6]#, 0.8, 1.2, 1.4, 1.5]#, 0.6, 1.4, 1.5]
 
     for N in nBDs:
-        for rel in rel_unc:
-            for _rs in rs:
-                for _g in gamma:
-                    print(_rs, _g)
-                    try:
-                        statistics(filepath, filepath2, ex, N, rel, f, _g, _rs, 
-                                   nwalkers, steps, 100, 3)
-                    except Exception as e:
-                        print(e)
-                        print("este no!")
-                        continue
+        for _rs in rs:
+            for _g in gamma:
+                print(N, _rs, _g)
+                try:
+                    statistics(_path, ex, N, sigma, _g, _rs, rank=200)
+                except Exception as e:
+                    print(e)
+                    print("Noooooo :_(")
+                    continue
 
