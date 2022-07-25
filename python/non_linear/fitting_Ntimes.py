@@ -11,7 +11,6 @@ from astropy.constants import R_jup
 import glob
 import pickle
 from scipy.interpolate import interp1d
-from utils import temperature_withDM
 import matplotlib.pyplot as plt
 import multinest_functions as solver
 import time
@@ -32,7 +31,7 @@ f_true     = 1.
 gamma_true = float(sys.argv[5])
 rs_true    = float(sys.argv[6])
 v          = 100.
-Tcut       = 0.
+Tcut       = 650.
 # ------------------------------------------------------------------------
 # Load theoretical cooling model
 path = "/home/mariacst/exoplanets/running/data/"
@@ -54,6 +53,10 @@ ages, c = np.genfromtxt(path + "derv_ana_wrt_M.dat", unpack=True)
 a_interp = interp1d(masses, a)
 b_interp = interp1d(masses, b)
 c_interp = interp1d(ages, c)
+masses, b1 = np.genfromtxt(path + "dderv_ana_wrt_AM.dat", unpack=True)             
+b1_interp  = interp1d(masses, b1)                                                  
+ages, c1  = np.genfromtxt(path + "dderv_ana_wrt_MA.dat", unpack=True)              
+c1_interp = interp1d(ages, c1) 
 
 # ---------------------- multinest solver -------------------------------------
 
@@ -66,10 +69,10 @@ tol        = 0.1
 t0 = time.time()
 # run MultiNest
 solution = solver.MyModelPyMultiNest(Tobs, robs, sigmaTobs, sigmarobs, Mobs,
-    sigmaMobs, Aobs, sigmaAobs, Teff, points, values, a_interp, b_interp, 
-    c_interp, v, rho0, n_dims=n_params, n_live_points=nlive, evidence_tolerance=tol,
+    sigmaMobs, Aobs, sigmaAobs, Teff, a_interp, b_interp, b1_interp,
+    c_interp, c1_interp, v, rho0, n_dims=n_params, n_live_points=nlive, evidence_tolerance=tol,
     sampling_efficiency=0.5,
-    outputfiles_basename="out/log/{}/".format(rank)+ex+ "v1_N{}_sigma{}_gamma{}_rs{}_v{}".format(nBDs, sigma, gamma_true, rs_true, rank), 
+    outputfiles_basename="out/extra_wider/{}/".format(rank)+ex+ "_N{}_sigma{}_gamma{}_rs{}_v{}".format(nBDs, sigma, gamma_true, rs_true, rank), 
     resume=False, verbose=False)
 t1 = time.time()
 print("Time taken to run 'PyMultiNest' is {} seconds".format(t1-t0))

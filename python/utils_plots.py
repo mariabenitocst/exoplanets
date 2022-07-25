@@ -99,8 +99,7 @@ def add_hatch(ax, i, j, width, height):
               hatch='//')) # the more slashes, the denser the hash lines 
     return
 
-
-def FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE="median"):
+def FSE_f_gamma_rs(filepath, nBDs, sigma, ex, PE="median"):
     # grid points
     f     = 1.
     rs    = np.array([5., 10., 20.])
@@ -110,38 +109,36 @@ def FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE="median"):
     for _rs in rs:
         for _g in gamma:
             try:
-                try:
-                    data = np.genfromtxt(filepath + "statistics_" + ex +           
-                                 ("_N%i_gamma%.1frs%.1f_1_200_extra_wider"                     
-                                  %(nBDs, _g, _rs)), unpack=True)  
-                except:
-                    try:
-                        data = np.genfromtxt(filepath + "statistics_" + ex +           
-                                 ("_N%i_gamma%.1frs%.1f_1_200_wider"                     
-                                  %(nBDs, _g, _rs)), unpack=True) 
-                        #print("wider", _rs, _g, nBDs)
-                    except:
-                        #print(nBDs)
-                        #print("1st except ", _rs, _g)
-                        data = np.genfromtxt(filepath + "statistics_" + ex + 
-                                 ("_N%i_gamma%.1frs%.1f_1_101" 
-                                  %(nBDs, _g, _rs)), unpack=True)
+                data = np.genfromtxt(filepath + "statistics_" + ex +
+                                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"
+                                  %(nBDs, sigma, _g, _rs)), unpack=True)  
             except:
-                print(filepath + "statistics_" + ex + ("_N%i_gamma%.1frs%.1f_1_101"%(nBDs, _g, _rs)))
+                print("No statistics file encounter!")
+                print(filepath + "statistics_" + ex +               
+                                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"                  
+                                  %(nBDs, sigma, _g, _rs)))
                 FSE.append(np.nan)
                 continue  
             if PE=="median":
                 pe = data[1]
-            elif PE=="mode":
+            elif PE=="mode1":
+                #print("return_MAP w/ nbins=20")
                 pe = data[4]
+            elif PE=="mode2":
+                #print("return_MAP w/ nbins=50")
+                pe = data[5]
+            elif PE=="mode3":
+                #print("return_MAP w/ nbins=100")
+                pe = data[6]
             elif PE=="mean":
                 pe = data[0]
             elif PE=="ML":
-                pe = data[7]
+                pe = data[9]
             else:
                 sys.exit("Point estimate not implemented!")
            
             rank=len(data[0]); #print(_rs, _g, rank)
+            #print("rank={}".format(rank))
             FSE.append(np.sqrt(1/rank*np.sum(np.power(pe - _g, 2)))/_g)
 
     xi = np.array([2.5, 7.5, 15, 25])
@@ -154,9 +151,8 @@ def FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE="median"):
     return xi, yi, zi
 
 
-def grid_FSE(filepath, nBDs, rel_unc, ex="ex1",
-             ax=False, PE="median", ylabel=False, xlabel=False,
-             rank=100, log=False, show=False):
+def grid_FSE(filepath, nBDs, rel_unc, ex="baseline", ax=False, PE="median",
+             ylabel=False, xlabel=False, log=False, show=False):
     """
     Plot FSE grid in (rs, gamma) 
     """
@@ -164,7 +160,7 @@ def grid_FSE(filepath, nBDs, rel_unc, ex="ex1",
     norm = colors.BoundaryNorm(boundaries=np.arange(0, 1, 0.05), ncolors=256)
 
     if log!=True:
-        xi, yi, zi = FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, rank=rank, PE=PE)
+        xi, yi, zi = FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE=PE)
     else:
         sys.exit("Not implemented yet!")
         #print("Remember issue w/ log10(f=1) in FSE denominator --> need to properly deal w/ this!")
@@ -222,17 +218,17 @@ def coverage_f_gamma_rs(filepath, nBDs, rel_unc, ex, rank=100, CR="symmetric"):
         for _g in gamma:
             try:
                 data = np.genfromtxt(filepath + "statistics_" + ex + 
-                                 ("_N%i_gamma%.1frs%.1f_1_101" 
-                                  %(nBDs, _g, _rs)), unpack=True)
+                                 ("_N%i_sigma%.1f_gamma%.1frs%.1f" 
+                                  %(nBDs, rel_unc, _g, _rs)), unpack=True)
                 if CR=="symmetric":
                     low  = data[2]
                     high = data[3]
                 elif CR=="HPD":
-                    low  = data[5]
-                    high = data[6]
+                    low  = data[7]
+                    high = data[8]
                 elif CR=="LI":
-                    low  = data[8]
-                    high = data[9]
+                    low  = data[10]
+                    high = data[11]
                 else:
                     sys.exit("Credible interval not implemented!")
                 one = _g > low

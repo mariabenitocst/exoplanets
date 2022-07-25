@@ -82,9 +82,9 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         rank        : number of simulations
         D           : dimension parameter space
     """
-    out_path = "/home/mariacst/exoplanets/results/power_law/sigma/statistics_"
+    out_path = "/home/mariacst/exoplanets/results/power_law/statistics_"
     output = open(out_path + ex + 
-                ("_N%i_sigma%.1f_gamma%.1frs%.1f_1_200_final_non_linear_wider"%(nBDs, sigma, gamma, rs)), 
+                ("_N%i_sigma%.1f_gamma%.1frs%.1f"%(nBDs, sigma, gamma, rs)), 
                 "w") 
 
     for i in range(rank):
@@ -105,7 +105,9 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         output.write("%.4f  "%np.percentile(samples[1], [50])) # median
         output.write("%.4f  "%np.percentile(samples[1], [16]))
         output.write("%.4f  "%np.percentile(samples[1], [84]))
-        output.write("%.4f  "%return_MAP(samples[1])) #MAP
+        output.write("%.4f  "%return_MAP(samples[1], nbins=20)) #MAP1
+        output.write("%.4f  "%return_MAP(samples[1])) #MAP2
+        output.write("%.4f  "%return_MAP(samples[1], nbins=100)) #MAP3
         output.write("%.4f  "%hdi_low)
         output.write("%.4f  "%hdi_high)
         output.write("%.4f  "%samples[1][np.argmax(samples[2])]) # ML
@@ -123,14 +125,13 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
 
 
 if __name__ == '__main__':
-    _path = "./out/wider/"
-    #_path     = "/hdfs/local/mariacst/exoplanets/results/multinest/onlySigmaT/power_law/wider/"
-    ex        = "T650_multinest"
-    nBDs     = [100]#, 1000]#, 1000]#, 1000]
+    _path = "./out/log/"
+    ex       = "baseline_log"
+    nBDs     = [1000]
     sigma    = float(sys.argv[1])
     f        = 1.
-    rs       = [5., 20.]
-    gamma    = [0.5, 0.6]#, 0.8, 1.2, 1.4, 1.5]#, 0.6, 1.4, 1.5]
+    rs       = [5., 10., 20.]
+    gamma    = [0.5, 0.6, 0.7, 0.8, 0.9, 1., 1.1, 1.2, 1.3, 1.4, 1.5]
 
     for N in nBDs:
         for _rs in rs:
