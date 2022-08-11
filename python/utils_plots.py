@@ -157,7 +157,7 @@ def grid_FSE(filepath, nBDs, rel_unc, ex="baseline", ax=False, PE="median",
     Plot FSE grid in (rs, gamma) 
     """
 
-    norm = colors.BoundaryNorm(boundaries=np.arange(0, 1, 0.05), ncolors=256)
+    norm = colors.BoundaryNorm(boundaries=np.arange(0, 1, 0.05), ncolors=256, extend="max")
 
     if log!=True:
         xi, yi, zi = FSE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE=PE)
