@@ -82,7 +82,7 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         rank        : number of simulations
         D           : dimension parameter space
     """
-    out_path = "/home/mariacst/exoplanets/results/power_law/statistics_"
+    out_path = "/home/mariacst/exoplanets/results/gNFW/statistics_"
     output = open(out_path + ex + 
                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"%(nBDs, sigma, gamma, rs)), 
                 "w") 
@@ -95,22 +95,20 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
                      %(nBDs, sigma, gamma, rs, i+1)))
         samples    = np.genfromtxt(file_name, unpack=True)
 
-        # 68% highest density interval
-        hdi_low, hdi_high = az.hdi(samples[1], hdi_prob=0.95)
+        # f
+        output.write("%.4f  "%samples[0][np.argmax(samples[3])]) # ML
         # profile L interval (region where log-L is within 1 of maximum)
-        LI_low, LI_high = LI(samples[2], samples[1], bin_n=60)
-
-        # calculate point estimates
-        output.write("%.4f  "%np.mean(samples[1])) # mean
-        output.write("%.4f  "%np.percentile(samples[1], [50])) # median
-        output.write("%.4f  "%np.percentile(samples[1], [16]))
-        output.write("%.4f  "%np.percentile(samples[1], [84]))
-        output.write("%.4f  "%return_MAP(samples[1], nbins=20)) #MAP1
-        output.write("%.4f  "%return_MAP(samples[1])) #MAP2
-        output.write("%.4f  "%return_MAP(samples[1], nbins=100)) #MAP3
-        output.write("%.4f  "%hdi_low)
-        output.write("%.4f  "%hdi_high)
-        output.write("%.4f  "%samples[1][np.argmax(samples[2])]) # ML
+        LI_low, LI_high = LI(samples[3], samples[0], bin_n=60)
+        output.write("%.4f  "%LI_low)
+        output.write("%.4f  "%LI_high)
+        # gamma
+        output.write("%.4f  "%samples[1][np.argmax(samples[3])]) # ML
+        LI_low, LI_high = LI(samples[3], samples[1], bin_n=60)
+        output.write("%.4f  "%LI_low)
+        output.write("%.4f  "%LI_high)
+        # rs
+        output.write("%.4f  "%samples[2][np.argmax(samples[3])]) # ML
+        LI_low, LI_high = LI(samples[3], samples[2], bin_n=60)
         output.write("%.4f  "%LI_low)
         output.write("%.4f  "%LI_high)
         output.write("\n")
@@ -125,8 +123,8 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
 
 
 if __name__ == '__main__':
-    _path    = "/home/mariacst/exoplanets/running/power_law/baseline_NL/out/"
-    ex       = "baseline_NL"
+    _path    = "/home/mariacst/exoplanets/running/gNFW/baseline_NL/out/"
+    ex       = "baseline_NL_gNFW"
     nBDs     = [int(sys.argv[1])]
     sigma    = 0.1
     f        = 1.
