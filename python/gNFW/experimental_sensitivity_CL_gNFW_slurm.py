@@ -246,8 +246,8 @@ def UL_at_rs(rs, f, nBDs, relT, relM, relR, relA, points, values,
 if __name__=="__main__":
     
     f         = 1.
-    nBDs      = 1000
-    sigma     = 0.1
+    nBDs      = 100
+    sigma     = 0.3
     gamma_max = float(sys.argv[4])
 
     rs        = float(sys.argv[1])
@@ -255,8 +255,8 @@ if __name__=="__main__":
     steps     = 200 # Need to vary
     
     relT = 0.1;
-    ex   = "baseline"
-    Tcut = 0.
+    ex   = "Tcut"
+    Tcut = 650.
     v    = 100. # km/s
     # Load ATMO2020 model
     path     = "/home/mariacst/exoplanets/running/data/"
