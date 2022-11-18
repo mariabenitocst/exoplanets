@@ -82,7 +82,8 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         rank        : number of simulations
         D           : dimension parameter space
     """
-    out_path = "/home/mariacst/exoplanets/results/power_law/statistics_"
+    #out_path = "/home/mariacst/exoplanets/results/power_law/statistics_"
+    out_path = "statistics"
     output = open(out_path + ex + 
                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"%(nBDs, sigma, gamma, rs)), 
                 "w") 
@@ -128,10 +129,10 @@ if __name__ == '__main__':
     _path    = "/home/mariacst/exoplanets/running/power_law/baseline_NL/out/"
     ex       = "baseline_NL"
     nBDs     = [int(sys.argv[1])]
-    sigma    = 0.1
+    sigma    = 0.
     f        = 1.
-    rs       = [5., 10., 20.]
-    gamma    = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+    rs       = [5.]#[5., 10., 20.]
+    gamma    = [1.5]#[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
     for N in nBDs:
         for _rs in rs:

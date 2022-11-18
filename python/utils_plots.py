@@ -160,6 +160,10 @@ def FSE_f_gamma_rs_gNFW(filepath, nBDs, sigma, ex, PE="ML", _f=False,
             data = np.genfromtxt(filepath + "statistics_" + ex +                   
                                  ("_N%i_sigma%.1f_gamma%.1frs%.1f"                 
                                   %(nBDs, sigma, _g, _rs)), unpack=True)           
+            #print((filepath + "statistics_" + ex +                   
+            #                     ("_N%i_sigma%.1f_gamma%.1frs%.1f"                 
+            #                      %(nBDs, sigma, _g, _rs))))
+            #print(_rs, _g, data.shape)
             if PE=="ML":                                                       
                 pe = data[index]                                                       
             else:                                                                  
@@ -275,14 +279,50 @@ def coverage_f_gamma_rs(filepath, nBDs, rel_unc, ex, CR="symmetric"):
 
     #print(len(data[0]))
     zi = np.array(cove).reshape(len(rs), len(gamma))/len(data[0])
-    print(zi)
     # return
     return xi, yi, zi
 
 
+
+def coverage_f_gamma_rs_gNFW(filepath, nBDs, rel_unc, ex, CR="symmetric"):              
+    # grid points                                                                  
+    f     = 1.                                                                     
+    rs    = np.array([5., 10., 20.])                                               
+    gamma = np.array([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5])        
+                                                                                   
+    cove = []                                                                      
+    for _rs in rs:                                                                 
+        for _g in gamma:                                                           
+            try:                                                                   
+                data = np.genfromtxt(filepath + "statistics_" + ex +               
+                                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"                 
+                                  %(nBDs, rel_unc, _g, _rs)), unpack=True)         
+                if CR=="LI":                                                     
+                    low  = data[4]       
+                    high = data[5]
+                else:                                                              
+                    sys.exit("Credible interval not implemented!")                 
+                one = _g > low                                                     
+                two = _g < high                                                    
+                cove.append(len(np.where((one==True) & (two==True))[0]))           
+            except:                                                                
+                cove.append(np.nan)                                                
+                                                                                   
+    xi = np.array([2.5, 7.5, 15, 25])                                              
+    yi = np.array([0.45, 0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.25,                 
+                   1.35, 1.45, 1.55])                                              
+    xi, yi = np.meshgrid(xi, yi, indexing="ij")                                    
+                                                                                   
+    #print(len(data[0]))                                                           
+    zi = np.array(cove).reshape(len(rs), len(gamma))/len(data[0])                  
+    # return                                                                       
+    return xi, yi, zi 
+
+
+
 def grid_coverage(filepath, nBDs, rel_unc, ex="ex1",
              ax=False, CR="symmetric", ylabel=False, xlabel=False,
-             log=False):
+             _gNFW=False):
     """
     Plot coverage grid in (rs, gamma) 
     """
@@ -291,11 +331,13 @@ def grid_coverage(filepath, nBDs, rel_unc, ex="ex1",
     bounds = np.array([0., 0.1, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.])
     norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
 
-    if log==False:
+    if _gNFW==False:
+
         xi, yi, zi = coverage_f_gamma_rs(filepath, nBDs, rel_unc,
                                          ex, CR=CR)
     else:
-        sys.exit("Not implemented!")
+        xi, yi, zi = coverage_f_gamma_rs_gNFW(filepath, nBDs, rel_unc,               
+                                         ex, CR=CR) 
 
     rs = [2.5, 5., 10., 20., 25.]
     g  = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]

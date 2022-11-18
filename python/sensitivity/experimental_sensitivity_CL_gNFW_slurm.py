@@ -9,7 +9,6 @@ from scipy.interpolate import griddata
 from utils import T_DM, temperature_withDM
 from astropy.constants import R_jup, M_sun
 from scipy.stats import percentileofscore
-from derivatives import derivativeTint_wrt_A, derivativeTint_wrt_M
 from derivatives import derivativeTintana_wrt_A
 from derivatives import derivativeTDM_wrt_M, derivativeTDM_wrt_r
 from scipy.interpolate import interp1d
@@ -91,50 +90,6 @@ def TS(gamma, f, rs, robs, sigma_robs, Mobs, sigma_Mobs, Aobs, sigma_Aobs,
                      a, b, c)
             )
 
-def p_value_sb(gamma_k, f, rs, nBDs, relT, relM, relR, relA, points, values,    
-               a, b, c, TS_obs, steps=300, Tmin=0., v=None, ex="baseline"):
-    """                                                                         
-    Return p-value for gamma_k @ (f, rs) under s+b hypothesis                   
-    """                                                                         
-    # Compute TS pdf                                                            
-    TS_k = np.zeros(steps) 
-    for i in range(steps):                                                      
-        # Generate experiments under s+b hypothesis  
-        np.random.seed(i+1)
-        (robs, sigmarobs, Tobs, sigmaTobs, Mobs, sigmaMobs, Aobs,               
-        sigmaAobs) = mock_population_all(nBDs, relT, relM, relR, relA, 
-                                           f, gamma_k, rs, Tmin=Tmin,v=v)     
-        # Predicted intrinsic temperatures                                         
-        xi       = np.transpose(np.asarray([Aobs, Mobs]))                       
-        Teff     = griddata(points, values, xi)                                 
-        # TS                                                                    
-        TS_k[i] = TS(gamma_k, f, rs, robs, sigmarobs, Mobs, sigmaMobs, Aobs,    
-                     sigmaAobs, Tobs, sigmaTobs, Teff, a, b, c, v=v)  
-    # return                                                                    
-    return 100-percentileofscore(TS_k, TS_obs, kind="strict") 
-
-def p_value_b(gamma_k, f, rs, nBDs, relT, relM, relR, relA, points, values,   
-              a, b, c, TS_obs, steps=300, Tmin=0., v=None, ex="baseline"):
-    """                                                                         
-    Return p-value for gamma_k @ (f, rs) under b hypothesis                     
-    """                                                                         
-    # Compute TS pdf                                                            
-    TS_k = np.zeros(steps)
-    for i in range(steps): 
-        # Generate experiments under s+b hypothesis 
-        np.random.seed(i+1)
-        (robs, sigmarobs, Tobs, sigmaTobs, Mobs, sigmaMobs, Aobs,               
-        sigmaAobs) = mock_population_all(nBDs, relT, relM, relR, relA, 
-                                           0., 1., 1., Tmin=Tmin)
-        # Predicted intrinsic temperatures                                      
-        xi       = np.transpose(np.asarray([Aobs, Mobs]))                       
-        Teff     = griddata(points, values, xi)                                 
-        # TS                                                                    
-        TS_k[i] = TS(gamma_k, f, rs, robs, sigmarobs, Mobs, sigmaMobs, Aobs,    
-                     sigmaAobs, Tobs, sigmaTobs, Teff, a, b, c, v=v)  
-    # return
-    return 100-percentileofscore(TS_k, TS_obs, kind="strict") 
-
 def sigma_Tmodel2_obs(r, M, A, sigma_r, sigma_M, sigma_A, Tint, dervTint_M, 
                   dervTint_A, f, params, v=None, R=R_jup.value, Rsun=8.178, 
                   epsilon=1):               
@@ -212,32 +167,21 @@ def _TS_obs(gamma, f, rs, robs, sigma_robs, Mobs, sigma_Mobs, Aobs, sigma_Aobs,
             )
 
 
-def UL_at_rs(rs, f, nBDs, relT, relM, relR, relA, points, values,
+def UL_at_rs(rs, f, nBDs, relT, relM, relR, relA, 
              robs, sigmarobs, Mobs, sigmaMobs, Aobs, sigmaAobs, Tobs, 
              sigmaTobs, Teff, a, b, c, dervTint_A, dervTint_M,
-             steps=300, rho0=0.42, v=None, Tmin=0., 
-             gamma_min=0.01, gamma_max=2.95):
+             rho0=0.42, v=None, gamma_min=0.01, gamma_max=2.):
     # Grid in gamma
-    gamma_k = np.linspace(gamma_min, gamma_max, 30) # change this?             
-    print(gamma_k)
+    gamma_k = np.linspace(gamma_min, gamma_max, 100) # change this?
+    #print(gamma_k)
     for g in gamma_k:                                                          
-        print(g)
+        #print(g)
         # Observed TS                                                          
         TS_obs = _TS_obs(g, f, rs, robs, sigmarobs, Mobs, sigmaMobs, Aobs,     
                          sigmaAobs, Tobs, sigmaTobs, Teff, dervTint_M, dervTint_A, 
-                         v=v)                
-        # s + b hypothesis                                                     
-        _p_sb = p_value_sb(g, f, rs, nBDs, relT, relM, relR, relA, points, 
-                           values, a, b, c, TS_obs, steps=steps, Tmin=Tmin, v=v)
-        #b hypothesis                                                          
-        _p_b = p_value_b(g, f, rs, nBDs, relT, relM, relR, relA, points,
-                         values, a, b, c, TS_obs, steps=steps, Tmin=Tmin, v=v)
-        try:                                                                   
-            CL = _p_sb / _p_b                                                  
-        except ZeroDivisionError:                                              
-            CL = 200.                                                          
-        if CL < 0.05:                                                          
-            gamma_up = g                                                    
+                         v=v)
+        if TS_obs > 3.84:
+            gamma_up = g
             break   
     #return
     return gamma_up
@@ -245,64 +189,59 @@ def UL_at_rs(rs, f, nBDs, relT, relM, relR, relA, points, values,
 if __name__=="__main__":
     
     f         = 1.
-    nBDs      = 100
-    sigma     = 0.1
-    gamma_max = [0.9, 1.2, 1.3]
+    nBDs      = int(sys.argv[2])
+    sigma     = float(sys.argv[3])
+    rs        = float(sys.argv[1])
 
-    rs        = [5., 10., 20.]
-    gamma_min = [0.4, 0.6, 0.9]
-    steps     = 200 # Need to vary
-    
+    gamma_min = -0.5
+    gamma_max = 1.2
+
     relT = 0.1;
-    ex   = "T650"
-    Tcut = 650.
+    ex   = "baseline"
+    if ex=="baseline":
+        Tcut = 0.
+    elif ex=="T650":
+        Tcut = 650.
+    print(ex, Tcut, sigma)
     v    = 100. # km/s
     # Load ATMO2020 model
     path     = "/home/mariacst/exoplanets/running/data/"
     data     = np.genfromtxt(path + "./ATMO_CEQ_vega_MIRI.txt", unpack=True)
     points   = np.transpose(data[0:2, :])
     values   = data[2]
-    gamma_up = np.ones(len(rs))*10.
     # Generate real observation
-    seed      = 250
-    np.random.seed(seed)
-    (robs, sigmarobs, Tobs, sigmaTobs, Mobs,                                  
-        sigmaMobs, Aobs, sigmaAobs) = mock_population_all_Asimov(nBDs, relT, 
+    
+    rank=300
+    _rs = np.ones(rank)*rs
+    _g  = np.ones(rank)*100
+    for i in range(rank):
+        print(i)
+        seed     = i #+ 350
+        np.random.seed(seed)
+        (robs, sigmarobs, Tobs, sigmaTobs, Mobs,                                  
+        sigmaMobs, Aobs, sigmaAobs) = mock_population_all(nBDs, relT, 
                                       sigma, sigma, sigma, 0., 1., 1., 
                                       Tmin=Tcut, v=v)                        
-    xi   = np.transpose(np.asarray([Aobs, Mobs]))                               
-    Teff = griddata(points, values, xi) 
-    # Calculate derivatives Tint wrt Age and Mass                               
-    masses, a, b = np.genfromtxt(path + "derv_ana_wrt_A.dat", unpack=True)
-    ages, c = np.genfromtxt(path + "derv_ana_wrt_M.dat", unpack=True)
-    a_interp = interp1d(masses, a)
-    b_interp = interp1d(masses, b)
-    c_interp = interp1d(ages, c)
-    
-    dervTint_A = np.ones(nBDs)
-    dervTint_M = np.ones(nBDs)                                        
-    size       = 7000                                                 
-    h          = 0.001                                                
-    for k in range(nBDs):                                             
-        dervTint_A[k] = derivativeTint_wrt_A(Mobs[k], Aobs[k], points, values,
-                                         size=size, h=h)                        
-        dervTint_M[k] = derivativeTint_wrt_M(Mobs[k], Aobs[k], points, values,
-                                         size=size, h=h)
+        xi   = np.transpose(np.asarray([Aobs, Mobs]))
+        Teff = griddata(points, values, xi)
+        # Calculate derivatives Tint wrt Age and Mass
+        masses, a, b = np.genfromtxt(path + "derv_ana_wrt_A.dat", unpack=True)
+        ages, c = np.genfromtxt(path + "derv_ana_wrt_M.dat", unpack=True)
+        a_interp = interp1d(masses, a)
+        b_interp = interp1d(masses, b)
+        c_interp = interp1d(ages, c)
 
-    i = 0
-    for _rs in rs:
+        dervTint_A = derivativeTintana_wrt_A(Mobs, Aobs, a_interp, b_interp)
+        dervTint_M = c_interp(Aobs) 
+
         # UL
-        gamma_up[i] = UL_at_rs(_rs, f, nBDs, relT, sigma, sigma, sigma, points, 
-                               values, robs, sigmarobs, Mobs, sigmaMobs, Aobs,
-                               sigmaAobs, Tobs, sigmaTobs, Teff, a_interp, b_interp,
-                               c_interp, dervTint_A, dervTint_M, steps=steps, v=v, 
-                               Tmin=Tcut, gamma_min=gamma_min[i], gamma_max=gamma_max[i])
-        print("%.1f  %.4f" %(_rs, gamma_up[i]))
-        i+=1
+        gamma_up = UL_at_rs(rs, f, nBDs, relT, sigma, sigma, sigma,
+                        robs, sigmarobs, Mobs, sigmaMobs, Aobs,
+                        sigmaAobs, Tobs, sigmaTobs, Teff, a_interp, b_interp,
+                        c_interp, dervTint_A, dervTint_M, v=v, 
+                        gamma_min=gamma_min, gamma_max=gamma_max)
+        _g[i] = gamma_up
 
-    #print(gamma_up)
-    output = np.array((np.array(rs), gamma_up))
     # save results
-    np.savetxt("UL_" + ex + "_nBDs%i_f%.1f_steps%i_sigma%.1f_rs%.1fAsimov_gNFW.dat"
-               %(nBDs, f, steps, sigma, _rs), 
-               output.T, fmt="%.4f  %.4f")
+    np.savetxt("UL_" + ex + "_nBDs%i_f%.1f_sigma%.1f_rs%.1f_gNFW.dat" 
+               %(nBDs, f, sigma, rs), np.array((_rs, _g)).T, fmt="%.1f  %.4f")

@@ -94,42 +94,39 @@ def _TS_obs(gamma, f, rs, robs, sigma_robs, Mobs, sigma_Mobs, Aobs, sigma_Aobs,
     Test statistics
     """
     # return
-    return (-2.*lnL_sb_obs(gamma, f, rs, robs, sigma_robs, Mobs, sigma_Mobs, 
+    return (+2.*lnL_sb_obs(gamma, f, rs, robs, sigma_robs, Mobs, sigma_Mobs, 
                        Aobs, sigma_Aobs, Tobs, sigma_Tobs, Tint, a, b, b1,
                        c, c1, v=v, R=R, Rsun=Rsun, rho0=rho0, epsilon=epsilon)
-            +2*lnL_b_obs(Mobs, Aobs, sigma_Mobs, sigma_Aobs, Tobs, sigma_Tobs, Tint, 
+            -2*lnL_b_obs(Mobs, Aobs, sigma_Mobs, sigma_Aobs, Tobs, sigma_Tobs, Tint, 
                        a, b, b1, c, c1)
             )
 
 
-def UL_at_rs(rs, f, nBDs, relT, relM, relR, relA, points, values,
-             robs, sigmarobs, Mobs, sigmaMobs, Aobs, sigmaAobs, Tobs, 
-             sigmaTobs, Teff, a, b, b1, c, c1,
-             rho0=0.42, Tmin=0., v=None, gamma_min=0.01, gamma_max=2.95):
+def UL_at_rs(seed, g, rs, f, nBDs, relT, relM, relR, relA, points, values,
+             a, b, b1, c, c1,
+             rho0=0.42, Tmin=0., v=None):
     # Grid in gamma
-    gamma_k = np.linspace(gamma_min, gamma_max, 100) # change this?
     #print(gamma_k)
-    for g in gamma_k:
-        #print(g)
-        # Observed TS
-        TS_obs = _TS_obs(g, f, rs, robs, sigmarobs, Mobs, sigmaMobs, Aobs,
+    np.random.seed(seed)
+    (robs, sigmarobs, Tobs, sigmaTobs, Mobs,
+        sigmaMobs, Aobs, sigmaAobs) = mock_population_all(nBDs, relT, 
+                                      relM, relR, relA, f, g, rs, 
+                                      Tmin=Tmin, v=v)
+    xi   = np.transpose(np.asarray([Aobs, Mobs]))
+    Teff = griddata(points, values, xi)
+    # Observed TS
+    TS_obs = _TS_obs(g, f, rs, robs, sigmarobs, Mobs, sigmaMobs, Aobs,
                          sigmaAobs, Tobs, sigmaTobs, Teff, a, b, b1, c, c1, 
                          v=v)
-        if TS_obs > 3.84:
-            gamma_up = g
-            break   
     #return
-    return gamma_up
+    return TS_obs
 
 if __name__=="__main__":
     
     f         = 1.
-    nBDs      = int(sys.argv[3])
+    nBDs      = int(sys.argv[1])
     sigma     = 0.1
-    gamma_max = 2.5
-
-    rs        = float(sys.argv[1])
-    gamma_min = -1.5
+    rs        = float(sys.argv[2])
     
     relT = 0.1;
     ex   = "baseline_NL"
@@ -140,16 +137,8 @@ if __name__=="__main__":
     data     = np.genfromtxt(path + "./ATMO_CEQ_vega_MIRI.txt", unpack=True)
     points   = np.transpose(data[0:2, :])
     values   = data[2]
-    # Generate real observation
-    seed     = int(sys.argv[2]) + 350
-    np.random.seed(seed)
-    (robs, sigmarobs, Tobs, sigmaTobs, Mobs,                                  
-        sigmaMobs, Aobs, sigmaAobs) = mock_population_all(nBDs, relT, 
-                                      sigma, sigma, sigma, 0., 1., 1., 
-                                      Tmin=Tcut, v=v)                        
-    xi   = np.transpose(np.asarray([Aobs, Mobs]))                               
-    Teff = griddata(points, values, xi) 
-    # Calculate derivatives Tint wrt Age and Mass                               
+
+    # Calculate derivatives Tint wrt Age and Mass
     masses, a, b = np.genfromtxt(path + "derv_ana_wrt_A.dat", unpack=True)
     ages, c = np.genfromtxt(path + "derv_ana_wrt_M.dat", unpack=True)
     a_interp = interp1d(masses, a)
@@ -158,19 +147,17 @@ if __name__=="__main__":
     masses, b1 = np.genfromtxt(path + "dderv_ana_wrt_AM.dat", unpack=True)
     b1_interp  = interp1d(masses, b1)
     ages, c1  = np.genfromtxt(path + "dderv_ana_wrt_MA.dat", unpack=True)
-    c1_interp = interp1d(ages, c1)   
+    c1_interp = interp1d(ages, c1)  
 
-    gamma_up = UL_at_rs(rs, f, nBDs, relT, sigma, sigma, sigma, points, 
-                        values, robs, sigmarobs, Mobs, sigmaMobs, Aobs,
-                        sigmaAobs, Tobs, sigmaTobs, Teff, a_interp, b_interp,
+    gamma_k = np.linspace(0.1, 2., 20) # change this?
+    runs=100
+    for g in gamma_k:
+        TS_final = np.ones(runs)*1000
+        for seed in range(runs):
+            _TSf = UL_at_rs(seed, g, rs, f, nBDs, relT, sigma, sigma, sigma, points, 
+                        values, a_interp, b_interp,
                         b1_interp, c_interp, c1_interp, 
-                        Tmin=Tcut, v=v, 
-                        gamma_min=gamma_min, gamma_max=gamma_max)
-    print("%.1f  %.4f" %(rs, gamma_up))
-
-    #print(gamma_up)
-    #output = np.array((gamma_up))
-    # save results
-    #np.savetxt("UL_" + ex + "_nBDs%i_f%.1f_steps%i_sigma%.1f_rs%.1f_gNFW.dat" 
-    #           %(nBDs, f, steps, sigma, rs), 
-    #           output.T, fmt="%.4f")
+                        Tmin=Tcut, v=v)
+            TS_final[seed] = _TSf
+        np.savetxt("ul_detect_nBDS{}_sigma{}_gamma{}_rs{}.dat".format(nBDs, sigma, g, rs),
+                   TS_final, fmt='%.3f')

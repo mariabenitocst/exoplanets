@@ -9,7 +9,7 @@ import astropy.units as u
 # Constant parameters & conversions ==========================================  
 _sigma_sb = sigma_sb.value                                                      
 _G        = G.value                                                             
-conversion_into_K_vs_kg = 1.60217e-7                                            
+conversion_into_K_vs_kg = 1.60217e-7
 conversion_into_w       = 0.16021766                                            
 conv_Msun_to_kg         = 1.98841e+30 # [kg/Msun]                               
 # ============================================================================ 
@@ -33,10 +33,10 @@ def delta_temperature_withDM(r, M, A, sigma_r, sigma_M, sigma_A, Tint, TDM, f,
 
 
 def vc(Rsun, Rint, parameters):
-    data = np.genfromtxt("../data/rc_e2bulge_R08.178_J_corr.dat", unpack=True)
+    data = np.genfromtxt("/home/mariacst/exoplanets/running/data/rc_e2bulge_R08.178_J_corr.dat", unpack=True)
     r = data[0]
     vB = data[1]
-    data = np.genfromtxt("../data/rc_hgdisc_R08.178_corr.dat", unpack=True)
+    data = np.genfromtxt("/home/mariacst/exoplanets/running/data/rc_hgdisc_R08.178_corr.dat", unpack=True)
     vD = data[1]
     vDM = vgNFW(Rsun, r, parameters)
     vtot = np.sqrt(np.power(vB, 2) + np.power(vD, 2)+ np.power(vDM, 2))
