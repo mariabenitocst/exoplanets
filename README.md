@@ -1,6 +1,6 @@
 # Extracting Dark Matter Halo Parameters with Overheated Exoplanets
 
-This is the code used to derive the results presened in Benito et al. (*in prep,*).
+This is the code used to derive the results presented in Benito et al. (*in prep.*).
 
 
 ## Credit
