@@ -105,7 +105,7 @@ def UL_at_rs(rs, f, nBDs, robs, sigmarobs, Mobs, sigmaMobs, Aobs, sigmaAobs,
              Tobs, sigmaTobs, Teff, a, b, b1, c, c1,
              rho0=0.42, v=None, gamma_min=0.01, gamma_max=2.95):
     # Grid in gamma
-    gamma_k = np.linspace(gamma_min, gamma_max, 100) # change this?
+    gamma_k = np.linspace(gamma_min, gamma_max, 200) # change this?
     #print(gamma_k)
     for g in gamma_k:
         #print(g)
@@ -126,17 +126,19 @@ if __name__=="__main__":
     sigma     = float(sys.argv[3])
     rs        = float(sys.argv[1])
     
-    gamma_min = 0.
-    gamma_max = 2.
+    gamma_min = -2.
+    gamma_max = 0.5
     
     relT = 0.1;
-    ex   = "baseline"
-    if ex=="baseline":
-        Tcut = 0.
-    elif ex=="T650":
-        Tcut=650.
+    ex   = "baseline_NL_v30"
+    Tcut = 0.
+    #if ex=="baseline":
+    #    Tcut = 0.
+    #elif ex=="T650":
+    #    Tcut=650.
     print(Tcut, nBDs, sigma)
-    v    = 100. # km/s
+    v    = 30. # km/s
+    print(v)
     # Load ATMO2020 model
     path     = "/home/mariacst/exoplanets/running/data/"
     data     = np.genfromtxt(path + "./ATMO_CEQ_vega_MIRI.txt", unpack=True)
@@ -149,7 +151,7 @@ if __name__=="__main__":
     for i in range(rank):
         print(i)
         # Generate real observation
-        seed = i #+ 350
+        seed = i + 350
         np.random.seed(seed)
         (robs, sigmarobs, Tobs, sigmaTobs, Mobs,
         sigmaMobs, Aobs, sigmaAobs) = mock_population_all(nBDs, relT, 
@@ -175,5 +177,5 @@ if __name__=="__main__":
         _g[i] = gamma_up
 
     # save results
-    np.savetxt("UL_" + ex + "_nBDs%i_f%.1f_sigma%.1f_rs%.1f_gNFW.dat" 
-            %(nBDs, f, sigma, rs), np.array((_rs, _g)).T, fmt="%.1f  %.4f")
+    np.savetxt("UL_" + ex + "_nBDs%i_sigma%.1f_f%.1f_rs%.1f_gNFW.dat" 
+            %(nBDs, sigma, f, rs), np.array((_rs, _g)).T, fmt="%.1f  %.4f")

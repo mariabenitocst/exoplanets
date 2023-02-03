@@ -205,6 +205,104 @@ def grid_FSE(filepath, nBDs, rel_unc, ex="baseline", ax=False, PE="median",
     if ax==False:
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         
+    im = ax.pcolormesh(xi, yi, zi, norm=norm, cmap="viridis_r", rasterized=True)
+    if show==True:
+        print(xi, yi)
+        print(zi)
+
+    if ylabel==True:
+        ax.set_ylabel(r"$\gamma$")
+        ax.set_yticklabels(['0.5', '', '0.7', '', '0.9', '', '1.1', '', '1.3', 
+                            '', '1.5'])
+    else:
+        ax.set_yticklabels([])
+    if xlabel==True:
+        ax.set_xlabel(r"$\rm r_s$ [kpc]")
+        ax.set_xticklabels(['5', '10', '15', '20'])
+    else:
+        ax.set_xticklabels([])
+
+    text_box = AnchoredText((r"$N=10^{%i}$, $\sigma_i$=%i"
+                            %(int(np.log10(nBDs)), int(rel_unc*100))
+                            + "$\% $"),
+                            frameon=True, loc=3, pad=0.2, prop=dict(size=18))
+    plt.setp(text_box.patch, facecolor="white")
+    ax.add_artist(text_box)
+
+    ax.tick_params(which='major',direction="out",width=2.,length=5,right=False,
+                   top=False,pad=5)
+
+    ax.set_xticks([5., 10., 15, 20.])
+    ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5])
+
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(2.5)
+
+    # return
+    return im
+
+# -----------------------------------
+## MARE
+# -----------------------------------
+
+def MARE_f_gamma_rs(filepath, nBDs, sigma, ex, PE="ML"):
+    # grid points
+    f     = 1.
+    rs    = np.array([5., 10., 20.])
+    gamma = np.array([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5])
+
+    MARE = [];
+    for _rs in rs:
+        for _g in gamma:
+            data = np.genfromtxt(filepath + "statistics_" + ex +
+                                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"
+                                  %(nBDs, sigma, _g, _rs)), unpack=True)  
+            if PE=="median":
+                pe = data[1]
+            elif PE=="mode1":
+                pe = data[4]
+            elif PE=="mode2":
+                pe = data[5]
+            elif PE=="mode3":
+                pe = data[6]
+            elif PE=="mean":
+                pe = data[0]
+            elif PE=="ML":
+                pe = data[9]
+            else:
+                sys.exit("Point estimate not implemented!")
+           
+            rank=len(data[0]); #print(_rs, _g, rank)
+            #print("rank={}".format(rank))
+            MARE.append(1/rank*np.sum(np.abs(pe - _g)/_g))
+
+    xi = np.array([2.5, 7.5, 15, 25])
+    yi = np.array([0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 
+                   1.05, 1.15, 1.25, 1.35, 1.45, 1.55])
+    xi, yi = np.meshgrid(xi, yi, indexing="ij")
+
+    zi   = np.array(MARE).reshape(len(rs), len(gamma))
+    # return
+    return xi, yi, zi
+
+
+
+def grid_MARE(filepath, nBDs, rel_unc, ex="baseline", ax=False, PE="median",
+              ylabel=False, xlabel=False, show=False,
+              gNFW=False, **kwargs):
+    """
+    Plot FSE grid in (rs, gamma) 
+    """
+
+    norm = colors.BoundaryNorm(boundaries=np.arange(0, 1, 0.05), ncolors=256, extend="max")
+
+    if not gNFW:
+        xi, yi, zi = MARE_f_gamma_rs(filepath, nBDs, rel_unc, ex, PE=PE)
+    else:
+        sys.exit("Not implemented!")
+    if ax==False:
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        
     im = ax.pcolormesh(xi, yi, zi, norm=norm, cmap="viridis_r")
     if show==True:
         print(xi, yi)
@@ -228,6 +326,8 @@ def grid_FSE(filepath, nBDs, rel_unc, ex="baseline", ax=False, PE="median",
                             frameon=True, loc=3, pad=0.2, prop=dict(size=18))
     plt.setp(text_box.patch, facecolor="white")
     ax.add_artist(text_box)
+
+    ax.tick_params(which='major',direction="out",width=1.5,length=5,right=False,top=False,pad=5)
 
     ax.set_xticks([5., 10., 15, 20.])
     ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5])
@@ -382,6 +482,9 @@ def grid_coverage(filepath, nBDs, rel_unc, ex="ex1",
                             frameon=True, loc=3, pad=0.2, prop=dict(size=18))
     plt.setp(text_box.patch, facecolor="white")
     ax.add_artist(text_box)
+
+    ax.tick_params(which='major',direction="out",width=2.,length=5,
+                   right=False,top=False,pad=5)
 
     ax.set_xticks([5., 10., 15, 20.])
     ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5])

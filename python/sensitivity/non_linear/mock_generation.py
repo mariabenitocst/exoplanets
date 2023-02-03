@@ -50,8 +50,8 @@ def spatial_sampling(nBDs, phi=0., theta=np.pi/2., R0=8.178):
     Sampling nBDs points from density profile rho using Von Neumann 
     acceptance-rejection technique
     """
-    ymin = 0.1; ymax = 1.0#R0
-    #print("maximimum observed GC distance = ", ymax)
+    ymin = 0.1; ymax = 1.#R0
+    #print("minimum/maximimum observed GC distance = ", ymin, ymax)
     umin = np.min([rho(ymin, phi, theta), rho(1., phi, theta), 
                    rho(R0, phi, theta)])
     umax = np.max([rho(ymin, phi, theta), rho(1., phi, theta), 
@@ -93,11 +93,11 @@ def mock_population_all(N, relT, relM, relRobs, relA,
     """
     #np.random.seed(42)
     #print(Tmin)
-    _N = int(8.5*N)
+    _N = int(20.*N)
     # galactocentric radius of simulated exoplanets
     r_obs = spatial_sampling(_N)
     # Age
-    ages = np.random.uniform(1., 10., _N) # [yr] / [1-10 Gyr]
+    ages = np.random.uniform(1., 10., _N) # [yr] / [1/8-10 Gyr]
     # Mass
     mass = IMF_sampling(-0.6, _N, Mmin=6, Mmax=75) # [Mjup]
     mass = mass*M_jup.value/M_sun.value # [Msun]
