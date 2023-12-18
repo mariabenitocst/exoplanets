@@ -1,10 +1,10 @@
 import sys
 import numpy as np
-import arviz as az
+#import arviz as az
 import pickle
 from scipy.stats import binned_statistic
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import minimize
+from scipy.optimize import root
 import pdb
 
 def return_MAP(samples, nbins=50):
@@ -18,58 +18,90 @@ def LI(L, samples, bin_n=50, verbose=False):
     (i.e. region where the log Likelihood is within 1 of its maximum value)
     
     """   
-    # Create bins in Likelihood vs parameter space, find the max Likelihood 
-    # value in each bin and the corresponding parameter values
-    x = binned_statistic(samples, -L, 'min', bins=bin_n)[1] 
+    x = binned_statistic(samples, -L, 'min', bins=bin_n)[1]
     y = binned_statistic(samples, -L, 'min', bins=bin_n+1)[0]
-    
+
+    logLmin = np.min(y[~np.isnan(y)]) + 0.5 
+
     # Create Interpolation fanction Likelihood - parameter
-    #pdb.set_trace()
-    z =  UnivariateSpline(x[~np.isnan(y)], y[~np.isnan(y)], s=0)
-    
-    # Find in which points crosses 1sigma horizontal line (where 1 sigma 
-    # corresponds to 1/2 -for 1 dof-)
-    x_tmin     = np.min(samples)
-    epsilon    = 1
-    niteration = 0
-    logLmin    = np.min(y[~np.isnan(y)]) + 1.
-    while epsilon > 10**-6 and niteration < 20:
-        niteration +=1
-        minimum = minimize(lambda x: (z(x)-logLmin)**2, x_tmin,
-                           bounds=((np.min(samples), samples[np.argmax(L)]),))
-        epsilon = minimum.fun
-        x_tmin  = x_tmin*1.1
-        _min    = minimum.x
+    z =  UnivariateSpline(x[~np.isnan(y)], y[~np.isnan(y)]-logLmin, s=0)      
+
+    pos = np.where(np.abs(y-logLmin+0.5)<1e-6)
+    sol = root(z, [x[pos]-0.3, x[pos]+0.3])
+
+    if (z(np.min(x[~np.isnan(y)]))<0.) and (z(np.max(x[~np.isnan(y)]))<0.):
+
+        sol.x[0] = np.min(x[~np.isnan(y)])
+        sol.x[1] = np.max(x[~np.isnan(y)])
+
+    elif np.abs(sol.x[0]-sol.x[1])<1e-3:
         
-    if epsilon < 10**-6:
-        LImin = _min[0]
-    else:
-        LImin = np.min(samples)
+
+        if (sol.x[0]>x[np.argmin(y[~np.isnan(y)])]) and (z(np.min(x[~np.isnan(y)]))<0.):
+
+            sol.x[0] = np.min(x[~np.isnan(y)])
         
-    x_tmax     = samples[np.argmax(L)]
-    epsilon    = 1
-    niteration = 0
-    while epsilon > 10**-6 and niteration < 25:
-        niteration +=1
-        maximum = minimize(lambda x: (z(x)-logLmin)**2, x_tmax, 
-                           bounds=((samples[np.argmax(L)], np.max(samples)),))
-        epsilon  = maximum.fun
-        x_tmax  = x_tmax*1.1
-        _max    = maximum.x
-    
-    if epsilon < 10**-6:
-        LImax = _max[0]
-    else:
-        LImax = np.max(samples)
+        elif (sol.x[0]<x[np.argmin(y[~np.isnan(y)])]) and (z(np.max(x[~np.isnan(y)]))<0.):
+            
+            sol.x[1] = np.max(x[~np.isnan(y)])
+        else:
+            # ======== Try again =============================================
+            if (sol.x[0]>x[np.argmin(y[~np.isnan(y)])]):
+                lower=1; upper=0
+            else:
+                lower=0; upper=1
+            sol = root(z, [x[pos]-0.3-(0.3*lower), x[pos]+0.3+(0.3*upper)])
+            # ================================================================
+        if np.abs(sol.x[0]-sol.x[1])<1e-3:
+
+            if (sol.x[0]>x[np.argmin(y[~np.isnan(y)])]) and (z(np.min(x[~np.isnan(y)]))<0.):
+
+                sol.x[0] = np.min(x[~np.isnan(y)])
+
+            elif (sol.x[0]<x[np.argmin(y[~np.isnan(y)])]) and (z(np.max(x[~np.isnan(y)]))<0.):
+
+                sol.x[1] = np.max(x[~np.isnan(y)])
+
+            else:
+
+                print("Error in %i run, unable to find roots in likelihood interval calculation"%i)
+
+                if (sol.x[0]>x[np.argmin(y[~np.isnan(y)])]):
+                    print("Problem w/ lower bound")
+                else:
+                    print("Problem w/ higher bound")
+ 
+                print("Need to check this sys, break me da error!")
+                sys.exit(-1) 
 
     if verbose==True:
-        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-        ax.plot(x, y, color="k", lw=2.5)
-        ax.axvline(LImin, color="g"); ax.axvline(LImax, color="g")
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        
+        ax.scatter(x[~np.isnan(y)], y[~np.isnan(y)]-logLmin)
+        x_plot = np.linspace(np.min(x[~np.isnan(y)]), np.max(x[~np.isnan(y)]), 50)
+        ax.plot(x_plot, z(x_plot), color="red")
+        ax.axhline(0., color="green")
+        ax.axvline(sol.x[0], color="green", ls="--")
+        ax.axvline(sol.x[1], color="green", ls="--")
+        fig.savefig("%i.png"%(i+1))
+        plt.close()
 
     #Return
-    return  LImin, LImax
+    return  sol.x[0], sol.x[1]
 
+def is_true_in_LI_1sigma(L, samples, true, bin_n=50):
+    x = binned_statistic(samples, -L, 'min', bins=bin_n)[1]
+    y = binned_statistic(samples, -L, 'min', bins=bin_n+1)[0]
+
+    logLmin = np.min(y[~np.isnan(y)]) + 0.5 
+
+    z =  UnivariateSpline(x[~np.isnan(y)], y[~np.isnan(y)]-logLmin, s=0)
+    how_many = z(true)<0
+    #import pdb; pdb.set_trace()
+    if how_many:
+        return 1
+    else:
+        return 0
 
 def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
     """
@@ -82,11 +114,12 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         rank        : number of simulations
         D           : dimension parameter space
     """
-    out_path = "/home/mariacst/exoplanets/results/power_law/older_BD/v30/statistics_"
+    out_path = "/home/mariacst/exoplanets/results/power_law/older_BD/statistics_"
     output = open(out_path + ex + 
                 ("_N%i_sigma%.1f_gamma%.1frs%.1f"%(nBDs, sigma, gamma, rs)), 
                 "w") 
 
+    how_many = 0
     for i in range(rank):
 
         #print(i)
@@ -96,51 +129,44 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
                      %(nBDs, sigma, gamma, rs, i+1)))
         samples    = np.genfromtxt(file_name, unpack=True)
 
-        # 68% highest density interval
-        hdi_low, hdi_high = az.hdi(samples[1], hdi_prob=0.95)
-        # profile L interval (region where log-L is within 1 of maximum)
-        LI_low, LI_high = LI(samples[2], samples[1], bin_n=60)
+        if samples.size == 0:
+            how_many += 1
+            print(i+1)
+            continue
 
         # calculate point estimates
-        output.write("%.4f  "%np.mean(samples[1])) # mean
-        output.write("%.4f  "%np.percentile(samples[1], [50])) # median
-        output.write("%.4f  "%np.percentile(samples[1], [16]))
-        output.write("%.4f  "%np.percentile(samples[1], [84]))
-        output.write("%.4f  "%return_MAP(samples[1], nbins=20)) #MAP1
-        output.write("%.4f  "%return_MAP(samples[1])) #MAP2
-        output.write("%.4f  "%return_MAP(samples[1], nbins=100)) #MAP3
-        output.write("%.4f  "%hdi_low)
-        output.write("%.4f  "%hdi_high)
         output.write("%.4f  "%samples[1][np.argmax(samples[2])]) # ML
-        output.write("%.4f  "%LI_low)
-        output.write("%.4f  "%LI_high)
+        # whether true value is contained in 1sigma LI 
+        output.write("%i  "%is_true_in_LI_1sigma(samples[2], samples[1], gamma))
         output.write("\n")
 
     output.close()
 
-    print("Remember to manually check convergence of profile L intervals!")
-    print("Oh no! I know ... it is boring!")
+    print("Number of samples empty = %i"%how_many)
+    print()
+    #print("Remember to manually check convergence of profile L intervals!")
+    #print("Oh no! I know ... it is boring!")
 
     # return
     return
 
 
 if __name__ == '__main__':
-    _path    = "/local/mariacst/2022_exoplanets/results/power_law/v30/baseline_NL_older/"
-    #_path    = "/home/mariacst/exoplanets/running/power_law/T650_NL/out/"
-    ex       = "baseline_NL_olderBD_v30"
+    #_path    = "/local/mariacst/2022_exoplanets/results/power_law/baseline_NL_older/"
+    _path    = "/home/mariacst/exoplanets/running/power_law/baseline_NL_noerror/out/"
+    ex       = "baseline_NL_olderBD_noerror_alsoT"
     nBDs     = [int(sys.argv[1])]
     sigma    = float(sys.argv[2])
     f        = 1.
-    rs       = [5.]
-    gamma    = [0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+    rs       = [5., 20.]
+    gamma    = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
     for N in nBDs:
         for _rs in rs:
             for _g in gamma:
                 print(N, _rs, _g)
                 try:
-                    statistics(_path, ex, N, sigma, _g, _rs, rank=200)
+                    statistics(_path, ex, N, sigma, _g, _rs, rank=100)
                 except Exception as e:
                     print(e)
                     print("Noooooo :_(")

@@ -2,10 +2,13 @@ import sys
 import numpy as np
 import arviz as az
 import pickle
-from scipy.stats import binned_statistic
-from scipy.interpolate import UnivariateSpline
+from scipy.stats import binned_statistic, binned_statistic_2d
+from scipy.interpolate import UnivariateSpline, interp2d
 from scipy.optimize import minimize
 import pdb
+import matplotlib.pyplot as plt
+from scipy.stats import chi2
+
 
 def return_MAP(samples, nbins=50):
     _n, _bins = np.histogram(samples, bins=nbins)
@@ -162,6 +165,75 @@ def LI(L, samples, bin_n=50, rank=1000, verbose=False):
     return  LImin, LImax
 
 
+def is_true_in_LI_1sigma(L, samples, true, bin_n=50):
+    x = binned_statistic(samples, -L, 'min', bins=bin_n)[1]
+    y = binned_statistic(samples, -L, 'min', bins=bin_n+1)[0]
+
+    logLmin = np.min(y[~np.isnan(y)]) + 0.5 
+
+    z =  UnivariateSpline(x[~np.isnan(y)], y[~np.isnan(y)]-logLmin, s=0)
+    how_many = z(true)<0
+    #import pdb; pdb.set_trace()
+    if how_many:
+        return 1
+    else:
+        return 0
+
+
+def value_in_2d(value, samples, i=0, bin_n=30, debugging=False):
+    # tengo que ver qué pasa con los signos
+    stat, x_edg, y_edg, binnumber = binned_statistic_2d(samples[1], 
+                                                        samples[2], 
+                                                        -samples[3], 
+                                                        'min', 
+                                                        bins=bin_n)
+    
+    x_bin = np.zeros(len(x_edg)-1)
+    for j in range(len(x_edg)-1):
+        x_bin[j] = np.mean((x_edg[j], x_edg[j+1]))
+    
+    y_bin = np.zeros(len(y_edg)-1)
+    for j in range(len(y_edg)-1):
+        y_bin[j] = np.mean((y_edg[j], y_edg[j+1]))
+    
+    _min_like = np.min(stat.ravel()[~np.isnan(stat.ravel())])
+    
+    if debugging==True:
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        c = ax.contourf(x_bin, y_bin, stat.T, 
+                        levels=(_min_like, 
+                                _min_like+2.30/2.,
+                                _min_like+3.70/2.)) 
+        cbar = plt.colorbar(c, ax=ax, pad = 0.05, orientation='vertical', shrink=0.55)
+        cbar.set_label(label ='log L', labelpad=15, size=15)
+        #print(value)
+        ax.scatter(value[0], value[1], color="red")
+        ax.set_xlabel(r"$\gamma$"); ax.set_ylabel(r"$r_s$ [kpc]")
+        fig.savefig("%i.png"%i)
+        plt.close()
+        #import sys; sys.exit()
+
+    p = chi2.cdf(1, 1)
+    X = chi2.ppf(p, 2)
+    X_1sigma = _min_like + 0.5*X
+    # if likelihood(value) < X_1sigma, value is contained within 1 sigma interval
+    
+    pos = np.where(np.isnan(stat))
+    stat[pos] = _min_like*100 # remove nan
+
+    like_interp = interp2d(x_bin, y_bin, stat.T)
+    
+    condition = like_interp(value[0], value[1]) < X_1sigma
+    
+    if debugging==True:
+        print("%i"%i, condition, like_interp(np.log10(value[0]), value[1]), X_1sigma)
+
+    if condition:
+        return 1
+    else:    
+        return 0
+
+
 def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
     """
     Calculate mean, median, MAP & ML point estimates
@@ -189,38 +261,34 @@ def statistics(filepath, ex, nBDs, sigma, gamma, rs, rank=100):
         # f
         output.write("%.4f  "%samples[0][np.argmax(samples[3])]) # ML
         # profile L interval (region where log-L is within 1 of maximum)
-        LI_low, LI_high = LI(samples[3], samples[0], bin_n=60)
-        output.write("%.4f  "%LI_low)
-        output.write("%.4f  "%LI_high)
+        output.write("%i  "%is_true_in_LI_1sigma(samples[3], samples[0], 1.))
         # gamma
         output.write("%.4f  "%samples[1][np.argmax(samples[3])]) # ML
-        LI_low, LI_high = LI(samples[3], samples[1], bin_n=60, rank=i, verbose=True)
-        output.write("%.4f  "%LI_low)
-        output.write("%.4f  "%LI_high)
+        output.write("%i  "%is_true_in_LI_1sigma(samples[3], samples[1], gamma))
         # rs
         output.write("%.4f  "%samples[2][np.argmax(samples[3])]) # ML
-        LI_low, LI_high = LI(samples[3], samples[2], bin_n=60)
-        output.write("%.4f  "%LI_low)
-        output.write("%.4f  "%LI_high)
+        output.write("%i  "%is_true_in_LI_1sigma(samples[3], samples[2], rs))
+        # (gamma, rs) in 2D
+        output.write("%i  "%value_in_2d((gamma, rs), samples, i=i, debugging=False))
         output.write("\n")
 
     output.close()
 
-    print("Remember to manually check convergence of profile L intervals!")
-    print("Oh no! I know ... it is boring!")
+    #print("Remember to manually check convergence of profile L intervals!")
+    #print("Oh no! I know ... it is boring!")
 
     # return
     return
 
 
 if __name__ == '__main__':
-    #_path    = "/local/mariacst/2022_exoplanets/results/gNFW/baseline_NL_longer/"
     _path    = "/home/mariacst/exoplanets/running/gNFW/baseline_NL/out/"
-    ex       = "baseline_NL_gNFW_longerPriorG"
+    #_path    = "/local/mariacst/2022_exoplanets/results/gNFW/baseline_NL_longer/"
+    ex       = "baseline_NL_gNFW_longerPriorG_wo_err_prop"
     nBDs     = [int(sys.argv[1])]
     sigma    = float(sys.argv[2])
     f        = 1.
-    rs       = [5., 10., 20.]
+    rs       = [5.]
     gamma    = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
     for N in nBDs:
